@@ -3,6 +3,8 @@ import { ScreenshotPart } from '../../shared/schema/PromptPartDefinitions'
 import { AgentRequest } from '../../shared/types/AgentRequest'
 import { PromptPartUtil, registerPromptPartUtil } from './PromptPartUtil'
 
+const MAX_SCREENSHOT_SIDE = 1536
+
 export const ScreenshotPartUtil = registerPromptPartUtil(
 	class ScreenshotPartUtil extends PromptPartUtil<ScreenshotPart> {
 		static override type = 'screenshot' as const
@@ -24,8 +26,10 @@ export const ScreenshotPartUtil = registerPromptPartUtil(
 				return { type: 'screenshot', screenshot: '' }
 			}
 
+			// Model APIs reject large images (Meta returns "image decode limit exceeded"),
+			// so a zoomed-out view is scaled down to a size every provider accepts.
 			const largestDimension = Math.max(request.bounds.w, request.bounds.h)
-			const scale = largestDimension > 8000 ? 8000 / largestDimension : 1
+			const scale = Math.min(1, MAX_SCREENSHOT_SIDE / largestDimension)
 
 			const result = await editor.toImage(shapes, {
 				format: 'jpeg',

@@ -127,6 +127,8 @@ export class AgentService {
 				// Opus 4.7+ removed `temperature` (and top_p/top_k); sending it returns a 400.
 				...(modelDefinition.supportsTemperature ? { temperature: 0 } : {}),
 				providerOptions: getProviderOptions(modelDefinition),
+				// Raw events let us log how a provider stream ended when it ends without finishing
+				includeRawChunks: true,
 				experimental_output: usesNativeJsonSchema
 					? Output.object({
 						schema: jsonSchema<{ actions: AgentAction[] }>(
@@ -145,7 +147,12 @@ export class AgentService {
 			}
 			const commentary = new Map<string, { text: string; startedAt: number }>()
 			let finishReason = 'unknown'
+			const lastProviderEvents: string[] = []
 			for await (const part of fullStream) {
+				if (part.type === 'raw') {
+					lastProviderEvents.push(JSON.stringify(part.rawValue).slice(0, 300))
+					if (lastProviderEvents.length > 3) lastProviderEvents.shift()
+				}
 				switch (part.type) {
 					case 'text-start':
 						if (part.providerMetadata?.openai?.phase === 'commentary') {
@@ -180,6 +187,9 @@ export class AgentService {
 					case 'abort':
 						throw new Error('Agent response was canceled.')
 				}
+			}
+			if (finishReason !== 'stop') {
+				console.error(`Agent response ended with "${finishReason}". Last provider events:`, lastProviderEvents)
 			}
 			reader.finish(finishReason)
 		} catch (error: any) {
