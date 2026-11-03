@@ -1,4 +1,4 @@
-import { Editor, RecordsDiff, reverseRecordsDiff, structuredClone, TLRecord } from 'tldraw'
+import { Editor, RecordsDiff, reverseRecordsDiff, structuredClone, TLRecord, TLShapeId } from 'tldraw'
 import { convertTldrawShapeToFocusedShape } from '../../shared/format/convertTldrawShapeToFocusedShape'
 import { AgentModelName } from '../../shared/models'
 import { parseAgentAction } from '../../shared/schema/parseAgentAction'
@@ -12,6 +12,7 @@ import { PromptPart } from '../../shared/types/PromptPart'
 import { Streaming } from '../../shared/types/Streaming'
 import { TodoItem } from '../../shared/types/TodoItem'
 import { AgentHelpers } from '../AgentHelpers'
+import { getRequestedShapeIds } from './getRequestedShapeIds'
 import { getModeNode } from '../modes/AgentModeChart'
 import { AgentModeType } from '../modes/AgentModeDefinitions'
 import { getPromptPartUtilsRecord, PromptPartUtil } from '../parts/PromptPartUtil'
@@ -244,6 +245,17 @@ export class TldrawAgent {
 	/** Get the board revision that the most recent request read. */
 	getLastBaseRev(): number {
 		return this.lastBaseRev
+	}
+
+	/**
+	 * Protected shapes the current user request asked for. The agent's own
+	 * follow-up passes keep the shapes the user request named.
+	 */
+	private allowedShapeIds: ReadonlySet<TLShapeId> = new Set()
+
+	/** Get the protected shapes the agent may change for the current user request. */
+	getAllowedShapeIds(): ReadonlySet<TLShapeId> {
+		return this.allowedShapeIds
 	}
 
 	/**
@@ -593,6 +605,13 @@ export class TldrawAgent {
 				.map((shape) => convertTldrawShapeToFocusedShape(this.editor, structuredClone(shape))),
 		}
 		this.chat.push(promptHistoryItem)
+
+		const requestedShapeIds = getRequestedShapeIds(this.editor, request)
+		this.allowedShapeIds =
+			request.source === 'self'
+				? new Set([...this.allowedShapeIds, ...requestedShapeIds])
+				: requestedShapeIds
+		this.actions.onRequestStart(request.source)
 
 		let cancelled = false
 		const controller = new AbortController()

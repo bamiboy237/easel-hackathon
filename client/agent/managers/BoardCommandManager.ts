@@ -1,4 +1,14 @@
-import { atom, Editor, RecordsDiff, reverseRecordsDiff, squashRecordDiffs, TLRecord } from 'tldraw'
+import {
+	atom,
+	Box,
+	Editor,
+	RecordsDiff,
+	reverseRecordsDiff,
+	squashRecordDiffs,
+	TLRecord,
+	TLShape,
+	TLShapeId,
+} from 'tldraw'
 import {
 	BoardCommand,
 	BoardCommandSchema,
@@ -13,11 +23,46 @@ function emptyChanges(): RecordsDiff<TLRecord> {
 export interface ExecuteOptions {
 	/** The board revision the command was based on. Required for agent commands. */
 	baseRev?: number
+	/**
+	 * Protected shapes the current request asked the agent to change: selected,
+	 * added as context, or named in the request. Shapes inside them count too.
+	 */
+	allowedShapeIds?: ReadonlySet<string>
 }
 
 export type BoardCommandResult =
 	| { status: 'applied'; changes: RecordsDiff<TLRecord> }
-	| { status: 'rejected'; changes: RecordsDiff<TLRecord>; staleRecordIds: string[] }
+	| {
+			status: 'rejected'
+			reason: 'stale'
+			changes: RecordsDiff<TLRecord>
+			staleRecordIds: string[]
+	  }
+	| {
+			status: 'rejected'
+			reason: 'protected'
+			changes: RecordsDiff<TLRecord>
+			protectedRecordIds: string[]
+	  }
+
+/** Who created a shape. Stored in `shape.meta.createdBy`, so it persists with the board. */
+export type ShapeCreator = 'user' | 'agent' | 'voice'
+
+export function getShapeCreator(shape: TLShape): ShapeCreator | undefined {
+	const creator = shape.meta.createdBy
+	return creator === 'user' || creator === 'agent' || creator === 'voice' ? creator : undefined
+}
+
+type ShapeLookup = (id: string) => TLShape | undefined
+
+// Shapes that only touch at an edge do not overlap.
+const OVERLAP_TOLERANCE = 2
+
+function overlaps(a: Box, b: Box): boolean {
+	const w = Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX)
+	const h = Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY)
+	return w > OVERLAP_TOLERANCE && h > OVERLAP_TOLERANCE
+}
 
 export class BoardCommandManager {
 	private history = atom<readonly BoardCommand[]>('board commands', [])
@@ -26,10 +71,23 @@ export class BoardCommandManager {
 	private humanRevs = new Map<string, number>()
 	private pendingUserChanges = emptyChanges()
 	private recordingDepth = 0
+	/** The origin of the command being executed, used to stamp the shapes it creates. */
+	private executingOrigin: CommandOrigin | null = null
 	private cleanups: (() => void)[] = []
 
 	constructor(private editor: Editor) {
 		const { store } = editor
+		// Stamp each new shape with its creator. Remote changes, such as a loaded
+		// board, keep what they have. A shape that already has a creator keeps it,
+		// so undo and redo do not change who owns a shape.
+		this.cleanups.push(
+			store.sideEffects.registerBeforeCreateHandler('shape', (shape, source) => {
+				if (source !== 'user' || getShapeCreator(shape)) return shape
+				const createdBy: ShapeCreator =
+					this.recordingDepth > 0 ? (this.executingOrigin ?? 'agent') : 'user'
+				return { ...shape, meta: { ...shape.meta, createdBy } }
+			})
+		)
 		for (const type of store.scopedTypes.document) {
 			this.cleanups.push(
 				store.sideEffects.registerAfterCreateHandler(type, (record, source) => {
@@ -67,32 +125,71 @@ export class BoardCommandManager {
 	}
 
 	/**
-	 * Run a command and record it. An agent command whose records a user or voice
-	 * command changed after its base revision is stale: its changes are rolled
-	 * back, and it is recorded as rejected.
+	 * Run a command and record it. An agent command is rejected, with its changes
+	 * rolled back, when either check fails:
+	 * - Stale: a user or voice command changed one of its records after its base revision.
+	 * - Protected: it changes, moves, or deletes a shape the user owns, or places a
+	 *   shape over one, and the current request did not ask for that.
 	 */
 	execute(
 		origin: CommandOrigin,
 		type: string,
 		apply: () => void,
-		{ baseRev }: ExecuteOptions = {}
+		{ baseRev, allowedShapeIds = new Set() }: ExecuteOptions = {}
 	): BoardCommandResult {
 		CommandOriginSchema.parse(origin)
 		if (!type) throw new Error('A board command must have a type.')
 		if (origin === 'agent' && baseRev === undefined) {
 			throw new Error('An agent command must carry the board revision it was based on.')
 		}
-		const changes = this.withoutRecording(() => this.editor.store.extractingChanges(apply))
-		const staleRecordIds = baseRev === undefined ? [] : this.getStaleRecordIds(changes, baseRev)
-		if (staleRecordIds.length > 0) {
+		const checksProtection = origin === 'agent'
+		const overlapsBefore = checksProtection ? this.getProtectedOverlaps(allowedShapeIds) : new Set<string>()
+		const previousOrigin = this.executingOrigin
+		this.executingOrigin = origin
+		let changes: RecordsDiff<TLRecord>
+		try {
+			changes = this.withoutRecording(() => this.editor.store.extractingChanges(apply))
+		} finally {
+			this.executingOrigin = previousOrigin
+		}
+		const rollBack = () =>
 			this.withoutRecording(() =>
 				this.editor.store.applyDiff(reverseRecordsDiff(changes), { runCallbacks: false })
 			)
-			this.record(origin, type, changes, { baseRev, staleRecordIds })
-			return { status: 'rejected', changes: emptyChanges(), staleRecordIds }
+
+		const staleRecordIds = baseRev === undefined ? [] : this.getStaleRecordIds(changes, baseRev)
+		if (staleRecordIds.length > 0) {
+			rollBack()
+			this.record(origin, type, changes, { baseRev, reason: 'stale', staleRecordIds })
+			return { status: 'rejected', reason: 'stale', changes: emptyChanges(), staleRecordIds }
 		}
+
+		const protectedRecordIds = checksProtection
+			? this.getProtectedViolations(changes, allowedShapeIds, overlapsBefore)
+			: []
+		if (protectedRecordIds.length > 0) {
+			rollBack()
+			this.record(origin, type, changes, { baseRev, reason: 'protected', protectedRecordIds })
+			return { status: 'rejected', reason: 'protected', changes: emptyChanges(), protectedRecordIds }
+		}
+
 		this.record(origin, type, changes, { baseRev })
 		return { status: 'applied', changes }
+	}
+
+	/**
+	 * The shape that protects a shape from agent changes, or undefined. A shape is
+	 * protected when the user created it, or when it sits inside a frame the user
+	 * created. A frame the user draws is their region.
+	 */
+	getProtector(id: string, lookup: ShapeLookup = this.currentShape): TLShape | undefined {
+		const shape = lookup(id)
+		if (!shape) return undefined
+		if (getShapeCreator(shape) === 'user') return shape
+		for (let parent = lookup(shape.parentId); parent; parent = lookup(parent.parentId)) {
+			if (parent.type === 'frame' && getShapeCreator(parent) === 'user') return parent
+		}
+		return undefined
 	}
 
 	// Preview updates and their replacements are not separate commands.
@@ -108,6 +205,120 @@ export class BoardCommandManager {
 	dispose() {
 		for (const cleanup of this.cleanups) cleanup()
 		this.cleanups = []
+	}
+
+	private currentShape: ShapeLookup = (id) => {
+		const record = this.editor.store.get(id as TLShapeId)
+		return record?.typeName === 'shape' ? record : undefined
+	}
+
+	private isAllowed(id: string, allowed: ReadonlySet<string>, lookup: ShapeLookup): boolean {
+		if (allowed.size === 0) return false
+		for (let shape = lookup(id); shape; shape = lookup(shape.parentId)) {
+			if (allowed.has(shape.id)) return true
+		}
+		return false
+	}
+
+	/**
+	 * The protected shapes an agent shape may not cover: user-created shapes that are
+	 * not inside a user frame, and user frames. A shape inside a user frame is covered
+	 * by its frame.
+	 */
+	private getProtectedRoots(allowed: ReadonlySet<string>): TLShape[] {
+		const lookup = this.currentShape
+		return this.editor.getCurrentPageShapes().filter((shape) => {
+			if (this.getProtector(shape.id) !== shape) return false
+			return !this.isAllowed(shape.id, allowed, lookup)
+		})
+	}
+
+	// Pairs of an unprotected shape and a protected root that already overlap, so
+	// that an agent can keep editing a shape the user placed their work on.
+	private getProtectedOverlaps(allowed: ReadonlySet<string>): Set<string> {
+		const pairs = new Set<string>()
+		const roots = this.getProtectedRoots(allowed)
+		if (roots.length === 0) return pairs
+		const rootBounds = roots.map((root) => [root, this.editor.getShapePageBounds(root)] as const)
+		for (const shape of this.editor.getCurrentPageShapes()) {
+			if (this.getProtector(shape.id)) continue
+			const bounds = this.editor.getShapePageBounds(shape)
+			if (!bounds) continue
+			for (const [root, other] of rootBounds) {
+				if (other && overlaps(bounds, other)) pairs.add(`${shape.id}|${root.id}`)
+			}
+		}
+		return pairs
+	}
+
+	/** The protected shapes an agent command would change, move, delete, or cover. */
+	private getProtectedViolations(
+		changes: RecordsDiff<TLRecord>,
+		allowed: ReadonlySet<string>,
+		overlapsBefore: ReadonlySet<string>
+	): string[] {
+		const { editor } = this
+		const after = this.currentShape
+		const updated = changes.updated as Record<string, [TLRecord, TLRecord]>
+		const removed = changes.removed as Record<string, TLRecord>
+		const before: ShapeLookup = (id) => {
+			const record =
+				updated[id]?.[0] ??
+				removed[id] ??
+				(id in changes.added ? undefined : editor.store.get(id as TLShapeId))
+			return record?.typeName === 'shape' ? record : undefined
+		}
+		const violations = new Set<string>()
+		const check = (id: string, lookup: ShapeLookup) => {
+			const protector = this.getProtector(id, lookup)
+			if (protector && !this.isAllowed(id, allowed, lookup)) violations.add(protector.id)
+			return protector
+		}
+
+		const placed: TLShapeId[] = []
+		for (const record of Object.values(changes.removed)) {
+			if (record.typeName === 'shape') check(record.id, before)
+		}
+		for (const record of Object.values(changes.added)) {
+			if (record.typeName !== 'shape') continue
+			if (!check(record.id, after)) placed.push(record.id)
+		}
+		for (const [prev, next] of Object.values(changes.updated)) {
+			if (next.typeName !== 'shape' || prev.typeName !== 'shape') continue
+			// A protected shape, or a shape moved into a user region.
+			if (check(next.id, before) || check(next.id, after)) continue
+			placed.push(next.id)
+			// Moving a shape moves what is inside it.
+			const moved =
+				prev.x !== next.x ||
+				prev.y !== next.y ||
+				prev.rotation !== next.rotation ||
+				prev.parentId !== next.parentId
+			if (!moved) continue
+			for (const id of editor.getShapeAndDescendantIds([next.id])) {
+				if (id !== next.id) check(id, after)
+			}
+		}
+
+		// Covering protected shapes: a new shape, or an edited one that newly overlaps.
+		const roots = this.getProtectedRoots(allowed)
+		if (placed.length > 0 && roots.length > 0) {
+			for (const id of placed) {
+				const bounds = editor.getShapePageBounds(id)
+				if (!bounds) continue
+				const ancestors = new Set(editor.getShapeAncestors(id).map((shape) => shape.id))
+				const bound = new Set<string>(
+					editor.getBindingsFromShape(id, 'arrow').map((binding) => binding.toId)
+				)
+				for (const root of roots) {
+					if (ancestors.has(root.id) || bound.has(root.id)) continue
+					if (id in changes.updated && overlapsBefore.has(`${id}|${root.id}`)) continue
+					const other = editor.getShapePageBounds(root)
+					if (other && overlaps(bounds, other)) violations.add(root.id)
+				}
+			}
+		}
+		return [...violations]
 	}
 
 	private collect(changes: RecordsDiff<TLRecord>) {
@@ -129,11 +340,21 @@ export class BoardCommandManager {
 		origin: CommandOrigin,
 		type: string,
 		changes: RecordsDiff<TLRecord>,
-		{ baseRev, staleRecordIds }: { baseRev?: number; staleRecordIds?: string[] } = {}
+		{
+			baseRev,
+			reason,
+			staleRecordIds,
+			protectedRecordIds,
+		}: {
+			baseRev?: number
+			reason?: 'stale' | 'protected'
+			staleRecordIds?: string[]
+			protectedRecordIds?: string[]
+		} = {}
 	) {
 		const { store } = this.editor
 		const isDocumentRecord = (record: TLRecord) => store.scopedTypes.document.has(record.typeName)
-		const rejected = staleRecordIds !== undefined
+		const rejected = reason !== undefined
 		const payload = {
 			added: Object.fromEntries(
 				Object.entries(changes.added).filter(([, record]) => isDocumentRecord(record))
@@ -154,7 +375,9 @@ export class BoardCommandManager {
 			status: rejected ? 'rejected' : 'applied',
 			rev: rejected ? null : this.rev + 1,
 			baseRev,
+			reason,
 			staleRecordIds,
+			protectedRecordIds,
 			payload,
 			createdAt: Date.now(),
 		})

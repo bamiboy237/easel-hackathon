@@ -12,7 +12,10 @@ import {
 import { ContextItem } from '../../shared/types/ContextItem'
 import { AgentAppAgentsManager } from '../agent/managers/AgentAppAgentsManager'
 
-type AgentHighlightColor = 'selected' | 'tooltip'
+type AgentHighlightColor = 'selected' | 'tooltip' | 'protected'
+
+// The outline on the user's shapes after the agent bumps into them stays quiet.
+const PROTECTED_ALPHA = 0.4
 const ANIMATION_PERIOD = 100_000
 const DASH_SPEED = 20
 const MINIMAP_FILL_ALPHA = 0.12
@@ -86,6 +89,16 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 				})
 			}
 
+			for (const shapeId of agent.actions.getProtectedFlash()) {
+				const bounds = this.editor.getShapePageBounds(shapeId)
+				if (!bounds) continue
+				overlays.push({
+					id: `agent-highlight:${agent.id}:protected:${shapeId}`,
+					type: 'agent-highlight',
+					props: { kind: 'area', bounds: toBoxModel(bounds), color: 'protected', generating: false },
+				})
+			}
+
 			const selectedContextItems = agent.requests.isGenerating() ? [] : agent.context.getItems()
 			this.addContextItemOverlays(overlays, agent.id, 'selected', selectedContextItems, false)
 			this.addContextItemOverlays(overlays, agent.id, 'active', activeContextItems, true)
@@ -110,6 +123,7 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 			if (overlay.props.kind === 'area') {
 				this.renderArea(ctx, overlay.props.bounds, {
 					color,
+					alpha: overlay.props.color === 'protected' ? PROTECTED_ALPHA : 1,
 					generating: overlay.props.generating,
 					dashOffset,
 					label: overlay.props.label,
@@ -260,6 +274,7 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 		pageBounds: BoxModel,
 		{
 			color,
+			alpha,
 			generating,
 			dashOffset,
 			label,
@@ -267,6 +282,7 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 			zoom,
 		}: {
 			color: string
+			alpha: number
 			generating: boolean
 			dashOffset: number
 			label?: string
@@ -276,6 +292,7 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 	): void {
 		const bounds = Box.From(pageBounds).expandBy(4)
 		ctx.save()
+		ctx.globalAlpha = alpha
 		ctx.strokeStyle = color
 		ctx.lineWidth = 1 / zoom
 		ctx.lineCap = 'round'
@@ -359,6 +376,7 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 		return {
 			selected: themeColors.selectionStroke,
 			tooltip: themeColors.text,
+			protected: themeColors.text,
 			labelText: themeColors.background,
 		}
 	}

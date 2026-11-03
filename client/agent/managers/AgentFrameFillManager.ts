@@ -84,10 +84,10 @@ Fill only this frame. Do not create a map, and do not change other frames or the
 					{ ignoreShapeLock: true, history: 'ignore' }
 				)
 			},
-			{ baseRev: this.agent.getLastBaseRev() }
+			{ baseRev: this.agent.getLastBaseRev(), allowedShapeIds: this.agent.getAllowedShapeIds() }
 		)
 		if (result.status === 'rejected') {
-			this.agent.actions.reportStaleCommand('file-into-frame', result.staleRecordIds)
+			this.agent.actions.reportRejectedCommand('file-into-frame', result)
 		}
 	}
 }

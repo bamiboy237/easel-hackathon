@@ -1,4 +1,4 @@
-import { RecordsDiff, structuredClone, TLRecord } from 'tldraw'
+import { atom, RecordsDiff, structuredClone, TLRecord, TLShapeId } from 'tldraw'
 import { parseAgentAction } from '../../../shared/schema/parseAgentAction'
 import { AgentAction } from '../../../shared/types/AgentAction'
 import { ChatHistoryItem } from '../../../shared/types/ChatHistoryItem'
@@ -7,6 +7,15 @@ import { AgentActionUtil, getAgentActionUtilsRecordForMode } from '../../actions
 import { AgentHelpers } from '../../AgentHelpers'
 import type { TldrawAgent } from '../TldrawAgent'
 import { BaseAgentManager } from './BaseAgentManager'
+import type { BoardCommandResult } from './BoardCommandManager'
+
+type RejectedCommandResult = Extract<BoardCommandResult, { status: 'rejected' }>
+
+/** Follow-up passes that rejection notices can start for one user request. */
+const MAX_REJECTION_PASSES = 3
+
+/** How long the board outlines protected shapes after the agent bumps into them. */
+const PROTECTED_FLASH_MS = 1600
 
 /**
  * Manages action-related functionality for the agent.
@@ -28,6 +37,11 @@ export class AgentActionManager extends BaseAgentManager {
 	 */
 	unknownActionUtil: AgentActionUtil<AgentAction>
 
+	private rejectionPasses = 0
+	private rejectionNoticePending = false
+	private $protectedFlash = atom<TLShapeId[]>('protected flash', [])
+	private protectedFlashTimeout: ReturnType<typeof setTimeout> | null = null
+
 	constructor(agent: TldrawAgent) {
 		super(agent)
 		this.agentActionUtils = getAgentActionUtilsRecordForMode(
@@ -42,7 +56,19 @@ export class AgentActionManager extends BaseAgentManager {
 	 * Currently no state to reset as action utils are stateless.
 	 */
 	reset(): void {
-		// Reset state if needed - currently no state to reset
+		this.rejectionPasses = 0
+		this.rejectionNoticePending = false
+	}
+
+	/** Called as each request starts. A new user request gets a fresh retry budget. */
+	onRequestStart(source: string): void {
+		this.rejectionNoticePending = false
+		if (source !== 'self') this.rejectionPasses = 0
+	}
+
+	/** The protected shapes the board outlines briefly after a protected rejection. */
+	getProtectedFlash(): TLShapeId[] {
+		return this.$protectedFlash.get()
 	}
 
 	/**
@@ -116,11 +142,14 @@ export class AgentActionManager extends BaseAgentManager {
 				promise = util.applyAction(structuredClone(action), helpers) ?? null
 			}
 			if (action.complete) {
-				const result = this.agent.commands.execute('agent', action._type, apply, { baseRev })
+				const result = this.agent.commands.execute('agent', action._type, apply, {
+					baseRev,
+					allowedShapeIds: this.agent.getAllowedShapeIds(),
+				})
 				diff = result.changes
 				if (result.status === 'rejected') {
 					rejected = true
-					this.reportStaleCommand(action._type, result.staleRecordIds)
+					this.reportRejectedCommand(action._type, result)
 				}
 			} else {
 				diff = this.agent.commands.withoutRecording(() => editor.store.extractingChanges(apply))
@@ -179,17 +208,38 @@ export class AgentActionManager extends BaseAgentManager {
 	}
 
 	/**
-	 * Tell the agent that a command was rejected as stale, so that its next
-	 * pass reads the current board before it changes those shapes again.
+	 * Tell the agent that a command was rejected, so that its next pass reads the
+	 * current board and works around the change. Rejection notices can start a
+	 * few follow-up passes per user request, so an agent that keeps aiming at the
+	 * same shapes cannot loop.
 	 */
-	reportStaleCommand(type: string, staleRecordIds: string[]) {
-		const ids = staleRecordIds.map((id) => id.replace(/^(shape|binding):/, ''))
-		console.warn(`Rejected stale agent command "${type}". Changed since its base revision:`, ids)
-		this.agent.schedule({
-			agentMessages: [
-				`Your "${type}" action was rejected and nothing from it was applied, because the user changed these shapes after you read the board: ${ids.join(', ')}. Keep the user's changes. Look at the current board before you change those shapes again, and redo the action only if it is still needed.`,
-			],
-			source: 'self',
-		})
+	reportRejectedCommand(type: string, result: RejectedCommandResult) {
+		const recordIds = result.reason === 'stale' ? result.staleRecordIds : result.protectedRecordIds
+		const ids = recordIds.map((id) => id.replace(/^(shape|binding):/, ''))
+		const message =
+			result.reason === 'stale'
+				? `Your "${type}" action was rejected and nothing from it was applied, because the user changed these shapes after you read the board: ${ids.join(', ')}. Keep the user's changes. Look at the current board before you change those shapes again, and redo the action only if it is still needed.`
+				: `Your "${type}" action was rejected and nothing from it was applied, because it would change, move, or cover the user's own work: ${ids.join(', ')}. Shapes the user made, and frames they drew with everything inside, are theirs. Leave them as they are, and put your work in clear space that does not overlap them. Change the user's work only when they select it or ask you to.`
+		console.warn(`Rejected ${result.reason} agent command "${type}":`, ids)
+		if (result.reason === 'protected') this.flashProtected(recordIds as TLShapeId[])
+
+		if (!this.rejectionNoticePending) {
+			if (this.rejectionPasses >= MAX_REJECTION_PASSES) {
+				console.warn('Rejection notice not sent: this request has used its follow-up passes.')
+				return
+			}
+			this.rejectionPasses++
+			this.rejectionNoticePending = true
+		}
+		this.agent.schedule({ agentMessages: [message], source: 'self' })
+	}
+
+	private flashProtected(ids: TLShapeId[]) {
+		this.$protectedFlash.update((current) => [...new Set([...current, ...ids])])
+		if (this.protectedFlashTimeout) clearTimeout(this.protectedFlashTimeout)
+		this.protectedFlashTimeout = setTimeout(() => {
+			this.$protectedFlash.set([])
+			this.protectedFlashTimeout = null
+		}, PROTECTED_FLASH_MS)
 	}
 }

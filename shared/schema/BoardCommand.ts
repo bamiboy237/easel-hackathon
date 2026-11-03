@@ -26,8 +26,12 @@ export const BoardCommandSchema = z.object({
 	rev: RevisionSchema.nullable(),
 	/** The board revision an agent command was based on. */
 	baseRev: RevisionSchema.optional(),
+	/** Why a rejected command was rejected. */
+	reason: z.enum(['stale', 'protected']).optional(),
 	/** For a stale command, the records that a user or voice command changed after `baseRev`. */
 	staleRecordIds: z.array(z.string()).optional(),
+	/** For a protected command, the user's shapes or regions it would have changed or covered. */
+	protectedRecordIds: z.array(z.string()).optional(),
 	payload: z.object({
 		added: z.record(z.string(), RecordSchema),
 		updated: z.record(z.string(), z.tuple([RecordSchema, RecordSchema])),
@@ -47,6 +51,8 @@ export const BoardCommandSchema = z.object({
 	createdAt: z.number().int().nonnegative(),
 }).refine((command) => (command.status === 'applied') === (command.rev !== null), {
 	message: 'Applied commands have a revision and rejected commands do not.',
+}).refine((command) => (command.status === 'rejected') === (command.reason !== undefined), {
+	message: 'Rejected commands have a reason and applied commands do not.',
 })
 
 export type BoardCommand = z.infer<typeof BoardCommandSchema>
