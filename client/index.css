@@ -616,31 +616,31 @@ button.prompt-tag span {
 
 .diff-shape-create-shadow {
 	filter: drop-shadow(
-			calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * 1px) 0px rgba(0, 200, 0, 50%)
+			calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * 1px) 0px rgba(45, 117, 86, 45%)
 		)
-		drop-shadow(calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * -1px) 0px rgba(0, 200, 0, 50%))
-		drop-shadow(calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * -1px) 0px rgba(0, 200, 0, 50%))
-		drop-shadow(calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * 1px) 0px rgba(0, 200, 0, 50%));
+		drop-shadow(calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * -1px) 0px rgba(45, 117, 86, 45%))
+		drop-shadow(calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * -1px) 0px rgba(45, 117, 86, 45%))
+		drop-shadow(calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * 1px) 0px rgba(45, 117, 86, 45%));
 }
 
 .diff-shape-delete-shadow {
 	filter: drop-shadow(
-			calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * 1px) 0px rgba(200, 0, 0, 50%)
+			calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * 1px) 0px rgba(174, 59, 44, 45%)
 		)
-		drop-shadow(calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * -1px) 0px rgba(200, 0, 0, 50%))
-		drop-shadow(calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * -1px) 0px rgba(200, 0, 0, 50%))
-		drop-shadow(calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * 1px) 0px rgba(200, 0, 0, 50%));
+		drop-shadow(calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * -1px) 0px rgba(174, 59, 44, 45%))
+		drop-shadow(calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * -1px) 0px rgba(174, 59, 44, 45%))
+		drop-shadow(calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * 1px) 0px rgba(174, 59, 44, 45%));
 }
 
 .diff-shape-update-after-shadow {
 	filter: drop-shadow(
-			calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * 1px) 0px rgba(0, 100, 255, 50%)
+			calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * 1px) 0px rgba(47, 91, 154, 45%)
 		)
 		drop-shadow(
-			calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * -1px) 0px rgba(0, 100, 255, 50%)
+			calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * -1px) 0px rgba(47, 91, 154, 45%)
 		)
-		drop-shadow(calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * -1px) 0px rgba(0, 100, 255, 50%))
-		drop-shadow(calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * 1px) 0px rgba(0, 100, 255, 50%));
+		drop-shadow(calc(var(--tl-scale) * 1px) calc(var(--tl-scale) * -1px) 0px rgba(47, 91, 154, 45%))
+		drop-shadow(calc(var(--tl-scale) * -1px) calc(var(--tl-scale) * 1px) 0px rgba(47, 91, 154, 45%));
 }
 
 /* Chat History Fallback */

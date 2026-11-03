@@ -16,6 +16,7 @@ import {
 } from './agent/TldrawAgentAppProvider'
 import { ChatPanel } from './components/ChatPanel'
 import { ChatPanelFallback } from './components/ChatPanelFallback'
+import { ContextualStylePanel } from './components/ContextualStylePanel'
 import { CustomHelperButtons } from './components/CustomHelperButtons'
 import { isReferenceBoard, ReferenceBoardLoader } from './components/ReferenceBoard'
 import { paperTheme } from './theme/paperTheme'
@@ -69,6 +70,7 @@ function App() {
 	// Custom components that need the agent app's React context
 	const components: TLComponents = useMemo(() => {
 		return {
+			StylePanel: ContextualStylePanel,
 			HelperButtons: () =>
 				app && (
 					<TldrawAgentAppContextProvider app={app}>
