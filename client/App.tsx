@@ -15,6 +15,7 @@ import {
 import { ChatPanel } from './components/ChatPanel'
 import { ChatPanelFallback } from './components/ChatPanelFallback'
 import { CustomHelperButtons } from './components/CustomHelperButtons'
+import { isReferenceBoard, ReferenceBoardLoader } from './components/ReferenceBoard'
 import { AgentHighlightOverlayUtil } from './overlays/AgentHighlightOverlayUtil'
 import { TargetAreaTool } from './tools/TargetAreaTool'
 import { TargetShapeTool } from './tools/TargetShapeTool'
@@ -75,13 +76,15 @@ function App() {
 			<div className="tldraw-agent-container">
 				<div className="tldraw-canvas">
 					<Tldraw
-						persistenceKey="tldraw-agent-demo"
+						// The reference board is not persisted, so it never overwrites the user's saved board.
+						persistenceKey={isReferenceBoard ? undefined : 'tldraw-agent-demo'}
 						tools={tools}
 						overlayUtils={overlayUtils}
 						overrides={overrides}
 						components={components}
 					>
 						<TldrawAgentAppProvider onMount={setApp} onUnmount={handleUnmount} />
+						{isReferenceBoard && <ReferenceBoardLoader />}
 					</Tldraw>
 				</div>
 				<ErrorBoundary fallback={ChatPanelFallback}>
