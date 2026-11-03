@@ -196,6 +196,14 @@
 	cursor: pointer;
 }
 
+.chat-panel.tl-theme__light .agent-ask-key {
+	display: inline-block;
+	min-width: 12px;
+	margin-right: 6px;
+	color: var(--tl-color-text-3);
+	font-variant-numeric: tabular-nums;
+}
+
 .chat-panel.tl-theme__light .agent-ask-choices button:hover:not(:disabled) {
 	background-color: var(--paper-hover);
 }

@@ -7,6 +7,7 @@ import { ChevronRightIcon } from '../../../shared/icons/ChevronRightIcon'
 import { AgentAction } from '../../../shared/types/AgentAction'
 import { ChatHistoryActionItem } from '../../../shared/types/ChatHistoryItem'
 import { Streaming } from '../../../shared/types/Streaming'
+import { answerQuestion, getOpenQuestion } from '../../agent/openQuestion'
 import { useAgent } from '../../agent/TldrawAgentAppProvider'
 import { ChatHistoryGroup } from './ChatHistoryGroup'
 import { getActionInfo } from './getActionInfo'
@@ -86,15 +87,7 @@ function AskCard({ item }: { item: ChatHistoryActionItem }) {
 	const action = item.action as Streaming<Extract<AgentAction, { _type: 'ask' }>>
 	const question = action.question ?? ''
 	const choices = action.complete ? (action.choices ?? []) : []
-	const index = history.indexOf(item)
-	const answered = history.slice(index + 1).some((entry) => entry.type === 'prompt' && entry.promptSource !== 'self')
-
-	const answer = (choice: string) => {
-		void agent.prompt({
-			agentMessages: [`You asked: "${question}" The user chose: "${choice}". Continue the work that way.`],
-			userMessages: [choice],
-		})
-	}
+	const isOpen = getOpenQuestion(history)?.item === item
 
 	return (
 		<div className="agent-ask">
@@ -103,8 +96,13 @@ function AskCard({ item }: { item: ChatHistoryActionItem }) {
 			</div>
 			{choices.length > 0 && (
 				<div className="agent-ask-choices">
-					{choices.map((choice) => (
-						<button key={choice} disabled={answered || isGenerating} onClick={() => answer(choice)}>
+					{choices.map((choice, i) => (
+						<button
+							key={choice}
+							disabled={!isOpen || isGenerating}
+							onClick={() => void answerQuestion(agent, question, choice)}
+						>
+							{isOpen && <span className="agent-ask-key">{i + 1}</span>}
 							{choice}
 						</button>
 					))}

@@ -65,6 +65,16 @@ export const TldrawAgentAppProvider = memo(function TldrawAgentAppProvider({
 	const handleError = useCallback(
 		(e: any) => {
 			const message = typeof e === 'string' ? e : e instanceof Error && e.message
+			// The model ran out of output before it finished. Its finished work was kept.
+			if (message && message.includes('did not finish (length)')) {
+				toasts.addToast({
+					title: 'Stopped early',
+					description: 'The model reached its output limit. Everything it finished is on the board.',
+					severity: 'info',
+				})
+				console.warn(e)
+				return
+			}
 			toasts.addToast({
 				title: 'Error',
 				description: message || 'An error occurred',

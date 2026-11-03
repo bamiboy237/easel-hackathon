@@ -1,5 +1,6 @@
-import { FormEventHandler, useCallback, useRef } from 'react'
+import { FormEventHandler, useCallback, useEffect, useRef } from 'react'
 import { useValue } from 'tldraw'
+import { answerQuestion, getOpenQuestion } from '../agent/openQuestion'
 import { useAgent } from '../agent/TldrawAgentAppProvider'
 import { ChatHistory } from './chat-history/ChatHistory'
 import { ChatInput } from './ChatInput'
@@ -8,6 +9,27 @@ import { TodoList } from './TodoList'
 export function ChatPanel() {
 	const agent = useAgent()
 	const inputRef = useRef<HTMLTextAreaElement>(null)
+
+	// While the agent waits on a question, the number keys pick its choices,
+	// unless the user is typing somewhere.
+	useEffect(() => {
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+			const index = Number(event.key) - 1
+			if (!Number.isInteger(index) || index < 0 || index > 3) return
+			const target = event.target as HTMLElement | null
+			if (target?.closest('input, textarea, [contenteditable="true"]')) return
+			if (agent.editor.getEditingShapeId() || agent.requests.isGenerating()) return
+			const open = getOpenQuestion(agent.chat.getHistory())
+			const choice = open?.choices[index]
+			if (!open || !choice) return
+			event.preventDefault()
+			event.stopPropagation()
+			void answerQuestion(agent, open.question, choice)
+		}
+		window.addEventListener('keydown', handleKeyDown, { capture: true })
+		return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
+	}, [agent])
 
 	const handleSubmit = useCallback<FormEventHandler<HTMLFormElement>>(
 		async (e) => {

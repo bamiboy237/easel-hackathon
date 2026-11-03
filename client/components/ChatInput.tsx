@@ -4,6 +4,7 @@ import { AtIcon } from '../../shared/icons/AtIcon'
 import { BrainIcon } from '../../shared/icons/BrainIcon'
 import { ChevronDownIcon } from '../../shared/icons/ChevronDownIcon'
 import { AGENT_MODEL_DEFINITIONS, AgentModelName } from '../../shared/models'
+import { getOpenQuestion } from '../agent/openQuestion'
 import { useAgent } from '../agent/TldrawAgentAppProvider'
 import { ContextItemTag } from './ContextItemTag'
 import { SelectionTag } from './SelectionTag'
@@ -32,6 +33,7 @@ export function ChatInput({
 	const selectedShapes = useValue('selectedShapes', () => editor.getSelectedShapes(), [editor])
 	const contextItems = useValue('contextItems', () => agent.context.getItems(), [agent])
 	const modelName = useValue('modelName', () => agent.modelName.getModelName(), [agent])
+	const hasOpenQuestion = useValue('has open question', () => getOpenQuestion(agent.chat.getHistory()) !== null, [agent])
 
 	return (
 		<div className="chat-input">
@@ -79,7 +81,7 @@ export function ChatInput({
 					ref={inputRef}
 					name="input"
 					autoComplete="off"
-					placeholder="Ask, learn, brainstorm, draw"
+					placeholder={hasOpenQuestion ? 'Pick a choice above, or type your answer' : 'Ask, learn, brainstorm, draw'}
 					value={inputValue}
 					onInput={(e) => setInputValue(e.currentTarget.value)}
 					onKeyDown={(e) => {
