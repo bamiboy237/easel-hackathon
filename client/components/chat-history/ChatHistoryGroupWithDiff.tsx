@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { reverseRecordsDiff, squashRecordDiffs } from 'tldraw'
 import { AgentIcon, AgentIconType } from '../../../shared/icons/AgentIcon'
 import { ChatHistoryActionItem } from '../../../shared/types/ChatHistoryItem'
@@ -76,20 +76,52 @@ export function ChatHistoryGroupWithDiff({ group }: { group: ChatHistoryGroup })
 		[items, agent]
 	)
 
+	const [isOpen, setIsOpen] = useState(false)
+	const descriptions = useMemo(() => getDistinctDescriptions(steps), [steps])
+	const summary = `${descriptions.length} ${descriptions.length === 1 ? 'change' : 'changes'}`
+
 	return (
-		<div className="chat-history-change">
-			<div className="chat-history-change-acceptance">
-				<button onClick={handleReject} disabled={acceptance === 'rejected'}>
-					{acceptance === 'rejected' ? 'Rejected' : 'Reject'}
+		<div className={`chat-history-change ${isOpen ? 'chat-history-change--open' : ''}`}>
+			<div className="chat-history-change-header">
+				<button
+					className="chat-history-change-toggle"
+					onClick={() => setIsOpen((open) => !open)}
+					aria-expanded={isOpen}
+				>
+					<span className="chat-history-change-chevron" aria-hidden>
+						›
+					</span>
+					<span className="chat-history-change-summary">{summary}</span>
+					{!isOpen && descriptions.length > 0 && (
+						<span className="chat-history-change-latest">{descriptions.at(-1)}</span>
+					)}
 				</button>
-				<button onClick={handleAccept} disabled={acceptance === 'accepted'}>
-					{acceptance === 'accepted' ? 'Accepted' : 'Accept'}
-				</button>
+				<div className="chat-history-change-acceptance">
+					{acceptance === 'rejected' ? (
+						<button onClick={handleAccept}>Restore</button>
+					) : (
+						<button onClick={handleReject}>Undo</button>
+					)}
+				</div>
 			</div>
-			<DiffSteps steps={steps} />
-			<TldrawDiffViewer diff={diff} />
+			{isOpen && (
+				<>
+					<DiffSteps steps={steps} />
+					<TldrawDiffViewer diff={diff} />
+				</>
+			)}
 		</div>
 	)
+}
+
+function getDistinctDescriptions(steps: DiffStep[]) {
+	const descriptions: string[] = []
+	for (const step of steps) {
+		if (step.description && step.description !== descriptions.at(-1)) {
+			descriptions.push(step.description)
+		}
+	}
+	return descriptions
 }
 
 interface DiffStep {
