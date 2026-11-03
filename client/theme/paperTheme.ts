@@ -97,7 +97,10 @@ function serifFaces(family: string, normal: string, italic: string): TLFontFace[
 }
 
 const serif: TLThemeFont = {
-	fontFamily: "'easel_serif', 'easel_serif_ext', 'easel_serif_greek', Georgia, serif",
+	// The web subsets leave out subscripts and math symbols, so those fall back to a
+	// system serif made for scientific text.
+	fontFamily:
+		"'easel_serif', 'easel_serif_ext', 'easel_serif_greek', 'STIX Two Text', STIXGeneral, 'Cambria Math', 'Times New Roman', serif",
 	faces: [
 		...serifFaces('easel_serif', latin, latinItalic),
 		...serifFaces('easel_serif_ext', latinExt, latinExtItalic),

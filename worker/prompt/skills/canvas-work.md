@@ -42,9 +42,9 @@ If a reference image is supplied, study it before drawing: overall proportions, 
 ### Choose marks that fit the idea
 
 - **Illustrations and sketches.** Use `pen` paths. Draw the silhouette first, then structure, then selective detail where it helps. Use `smooth` for flowing contours and `straight` for deliberate construction, with enough points at bends to avoid a polygon look. Start a new pen action for each separate stroke.
-- **Math and physics diagrams.** Get the logic right before the look: directions, signs, units, scales, and which quantities are equal. Use arrows for vectors and relationships, and keep a consistent scale when things are compared. For 3D ideas, draw clear axes in perspective and label them, then place objects and vectors relative to those axes.
+- **Math and physics diagrams.** Get the logic right before the look: directions, signs, units, scales, and which quantities are equal. Use arrows for vectors and relationships, and keep a consistent scale when things are compared. For 3D ideas, draw clear axes in perspective and label them, then place objects and vectors relative to those axes. Write math the way a textbook prints it, with real symbols: v₀, vₓ, θ, x², ½, ×, −, ·, ≈, Δ, rather than v0, vx, x^2, or *. Put each equation in a step on its own line, and line the steps up on a shared left edge.
 - **Mockups.** Organize the screen around the user's main task, with realistic content, consistent alignment, and one clear primary action.
-- **Text.** Keep it as editable text with a few distinct sizes for headings, body, and labels. Set `maxWidth`, and size any background box for the lines the text actually renders, with padding.
+- **Text.** Keep it as editable text with a few distinct sizes for headings, body, and labels. Set `maxWidth`, and size any background box for the lines the text actually renders, with padding. Leave at least a line of space between separate pieces of text, so a label never touches the text or drawing beside it.
 - **Color.** Use color when it carries meaning, such as one color per vector component, and keep that meaning consistent across the board.
 - Give objects meaningful IDs and `note` values so later edits can find them.
 
