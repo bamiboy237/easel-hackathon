@@ -1,8 +1,11 @@
 import {
 	Box,
 	getArrowBindings,
+	getDisplayValues,
 	intersectPolygonPolygon,
 	RecordsDiff,
+	renderHtmlFromRichTextForMeasurement,
+	TextShapeUtil,
 	TLArrowShape,
 	TLRecord,
 	TLShape,
@@ -212,9 +215,11 @@ export class AgentLintManager extends BaseAgentManager {
 			const text = editor.getShapeUtil(shape).getText(shape)
 			return text !== undefined && text.trim().length > 0
 		}
-		const checked = new Set(shapes.filter(hasText).map((shape) => shape.id))
+		// Empty boxes count too: text that crosses a background box's edge is unreadable there
+		const isCandidate = (shape: TLShape) => hasText(shape) || shape.type === 'geo'
+		const checked = new Set(shapes.filter(isCandidate).map((shape) => shape.id))
 		if (checked.size === 0) return groups
-		const shapesWithText = editor.getCurrentPageShapes().filter(hasText)
+		const shapesWithText = editor.getCurrentPageShapes().filter(isCandidate)
 
 		if (shapesWithText.length < 2) {
 			return groups
@@ -248,6 +253,7 @@ export class AgentLintManager extends BaseAgentManager {
 			for (let j = i + 1; j < shapesWithText.length; j++) {
 				const shapeB = shapesWithText[j]
 				if (!checked.has(shapeA.id) && !checked.has(shapeB.id)) continue
+				if (!hasText(shapeA) && !hasText(shapeB)) continue
 				if (this.textCollides(shapeA, shapeB)) {
 					union(shapeA, shapeB)
 				}
@@ -300,19 +306,53 @@ export class AgentLintManager extends BaseAgentManager {
 	 */
 	private textCollides(shapeA: TLShape, shapeB: TLShape): boolean {
 		const { editor } = this.agent
-		const boundsA = editor.getShapePageBounds(shapeA)
-		const boundsB = editor.getShapePageBounds(shapeB)
+		const boundsA = this.getTextInkBounds(shapeA) ?? editor.getShapePageBounds(shapeA)
+		const boundsB = this.getTextInkBounds(shapeB) ?? editor.getShapePageBounds(shapeB)
 		if (!boundsA || !boundsB || !Box.Collides(boundsA, boundsB)) return false
 
 		const isContainer = (shape: TLShape) => shape.type === 'geo' || shape.type === 'note'
-		if (isContainer(shapeA) && !isContainer(shapeB) && boundsA.contains(boundsB)) return false
-		if (isContainer(shapeB) && !isContainer(shapeA) && boundsB.contains(boundsA)) return false
+		const holds = (outer: Box, inner: Box) => outer.clone().expandBy(4).contains(inner)
+		if (isContainer(shapeA) !== isContainer(shapeB)) {
+			// Text inside a box is a label. A small box inside a text's area, such as a dot, is a mark.
+			if (holds(boundsA, boundsB) || holds(boundsB, boundsA)) return false
+		}
 
 		const overlapW = Math.min(boundsA.maxX, boundsB.maxX) - Math.max(boundsA.minX, boundsB.minX)
 		const overlapH = Math.min(boundsA.maxY, boundsB.maxY) - Math.max(boundsA.minY, boundsB.minY)
 		if (overlapW < 6 || overlapH < 6) return false
 
 		return this.shapesOverlap(shapeA, shapeB)
+	}
+
+	/**
+	 * A fixed-width text shape's bounds span its whole width, even when its lines are shorter.
+	 * Return the page area its widest rendered line actually covers, or null for other shapes.
+	 */
+	private getTextInkBounds(shape: TLShape): Box | null {
+		const { editor } = this.agent
+		if (!editor.isShapeOfType(shape, 'text') || shape.props.autoSize) return null
+		const bounds = editor.getShapePageBounds(shape)
+		if (!bounds) return null
+
+		const util = editor.getShapeUtil(shape) as TextShapeUtil
+		const dv = getDisplayValues(util, shape)
+		const measured = editor.textMeasure.measureHtml(
+			renderHtmlFromRichTextForMeasurement(editor, shape.props.richText),
+			{
+				fontFamily: dv.fontFamily,
+				fontSize: dv.fontSize,
+				fontWeight: dv.fontWeight,
+				fontStyle: dv.fontStyle,
+				lineHeight: dv.lineHeight,
+				padding: '0px',
+				maxWidth: Math.floor(shape.props.w),
+			}
+		)
+		const inkWidth = Math.min(bounds.w, (measured.w + 1) * shape.props.scale)
+		const slack = bounds.w - inkWidth
+		const offset =
+			shape.props.textAlign === 'middle' ? slack / 2 : shape.props.textAlign === 'end' ? slack : 0
+		return new Box(bounds.x + offset, bounds.y, inkWidth, bounds.h)
 	}
 
 	private getTextSnippet(shape: TLShape): string {
