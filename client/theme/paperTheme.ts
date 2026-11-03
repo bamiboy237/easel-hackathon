@@ -7,10 +7,10 @@ import latin from '@fontsource-variable/source-serif-4/files/source-serif-4-lati
 import { DEFAULT_THEME, TLDefaultColor, TLFontFace, TLTheme, TLThemeColors, TLThemeFont } from 'tldraw'
 
 // Warm paper and ink, in the spirit of claude.ai's day theme.
-export const PAPER = '#F6F2E9'
-const SHEET = '#FBF8F2'
+export const PAPER = '#FAF7F0'
+const SHEET = '#FEFCF8'
 const INK = '#1F1E1B'
-const RULE = '#DCD4C4'
+const RULE = '#E3DBCB'
 export const CLAY = '#C2603E'
 
 /**

@@ -1,9 +1,14 @@
 /* Paper day theme for the tldraw UI and the chat panel. Canvas colors live in paperTheme.ts. */
 
 .tl-theme__light {
-	--paper: #f6f2e9;
-	--paper-sheet: #fbf8f2;
-	--paper-rule: #e4ddcf;
+	--paper: #faf7f0;
+	--paper-sheet: #fefcf8;
+	--paper-panel: #fcfaf5;
+	--paper-card: #fffefb;
+	--paper-wash: #f2ece1;
+	--paper-hover: #f3eee5;
+	--paper-pressed: #ebe4d6;
+	--paper-rule: #e9e2d4;
 	--paper-ink: #1f1e1b;
 	--paper-clay: #c2603e;
 
@@ -12,7 +17,7 @@
 	--tl-color-selection-stroke: var(--paper-clay);
 	--tl-color-grid: hsl(38, 14%, 62%);
 
-	--tl-color-low: #efe9dd;
+	--tl-color-low: var(--paper-wash);
 	--tl-color-low-border: var(--paper-rule);
 	--tl-color-muted-0: rgba(60, 45, 20, 0.02);
 	--tl-color-muted-1: rgba(60, 45, 20, 0.08);
@@ -20,11 +25,11 @@
 	--tl-color-hint: rgba(60, 45, 20, 0.06);
 	--tl-color-divider: var(--paper-rule);
 	--tl-color-panel: var(--paper-sheet);
-	--tl-color-panel-contrast: #fffdf8;
+	--tl-color-panel-contrast: var(--paper-card);
 	--tl-color-panel-overlay: rgba(251, 248, 242, 0.86);
 	--tl-color-panel-transparent: rgba(251, 248, 242, 0);
 	--tl-color-selected: var(--paper-clay);
-	--tl-color-selected-contrast: #fffdf8;
+	--tl-color-selected-contrast: var(--paper-card);
 	--tl-color-focus: var(--paper-clay);
 	--tl-color-tooltip: var(--paper-ink);
 
@@ -50,6 +55,14 @@
 		0px 16px 40px rgba(60, 45, 20, 0.08);
 }
 
+/*
+ * A faint fiber grain, like good writing paper. It stays fixed to the screen,
+ * so it reads as the surface rather than as marks on the board.
+ */
+.tl-theme__light .tl-background {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.36 0 0 0 0 0.22 0 0 0 0.055 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
 /* Quiet frames: a serif title like a section heading, with no chip behind it. */
 .tl-theme__light .tl-frame-heading {
 	font-family: 'Source Serif 4 Variable', Georgia, serif;
@@ -64,7 +77,7 @@
 }
 
 .tl-theme__light .tlui-button__tool[aria-pressed='true']:not(:disabled, [data-disabled])::after {
-	background: #e8dfcf;
+	background: var(--paper-pressed);
 }
 
 .tl-theme__light .tlui-button__tool[aria-pressed='true']:not(:disabled, [data-disabled], :focus-visible):active {
@@ -74,7 +87,7 @@
 .chat-panel.tl-theme__light {
 	--tl-color-text-2: #8a8476;
 	--tl-color-primary-hover: #a9502f;
-	background-color: #faf7f0;
+	background-color: var(--paper-panel);
 	border-left: 1px solid var(--paper-rule);
 	font-size: 13px;
 }
@@ -105,7 +118,7 @@
 }
 
 .chat-panel.tl-theme__light .new-chat-button:hover {
-	background-color: #ece5d8;
+	background-color: var(--paper-hover);
 }
 
 .chat-empty {
@@ -134,11 +147,11 @@
 
 /* The user's prompt sits in a soft paper pill; the agent's reply reads as plain text. */
 .chat-panel.tl-theme__light .chat-history-prompt-container {
-	background-color: #faf7f0;
+	background-color: var(--paper-panel);
 }
 
 .chat-panel.tl-theme__light .chat-history-prompt {
-	background-color: #efe9dd;
+	background-color: var(--paper-wash);
 	box-shadow: none;
 	border-radius: 12px;
 	padding: 10px 12px;
@@ -157,7 +170,7 @@
 .chat-panel.tl-theme__light .chat-history-change {
 	border: 1px solid var(--paper-rule);
 	border-radius: 10px;
-	background-color: #fffdf8;
+	background-color: var(--paper-card);
 	overflow: hidden;
 }
 
@@ -226,7 +239,7 @@
 }
 
 .chat-panel.tl-theme__light .chat-history-change-acceptance button:hover {
-	background-color: #f0e9dc;
+	background-color: var(--paper-hover);
 	color: var(--paper-ink);
 }
 
@@ -252,11 +265,11 @@
 }
 
 .chat-panel.tl-theme__light .chat-input {
-	background-color: #faf7f0;
+	background-color: var(--paper-panel);
 }
 
 .chat-panel.tl-theme__light .chat-input form {
-	background-color: #fffdf8;
+	background-color: var(--paper-card);
 	border: 1px solid var(--paper-rule);
 	border-radius: 16px;
 	box-shadow: 0px 2px 8px rgba(60, 45, 20, 0.06);
@@ -270,11 +283,11 @@
 }
 
 .chat-panel.tl-theme__light .chat-input-submit:disabled {
-	background: #e3dccd;
+	background: var(--paper-pressed);
 	color: #a69f91;
 }
 
 .chat-panel.tl-theme__light .todo-list {
-	background-color: #fffdf8;
+	background-color: var(--paper-card);
 	border-color: var(--paper-rule);
 }
