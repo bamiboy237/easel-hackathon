@@ -20,6 +20,8 @@
 		"@ai-sdk/google": "^2.0.74",
 		"@ai-sdk/openai": "^2.0.106",
 		"@cloudflare/vite-plugin": "^1.29.1",
+		"@fontsource-variable/newsreader": "^5.3.0",
+		"@fontsource-variable/source-serif-4": "^5.3.1",
 		"@google/generative-ai": "^0.24.1",
 		"@tldraw/tlschema": "^5.6.0",
 		"@worker-tools/json-stream": "^0.1.0-pre.12",

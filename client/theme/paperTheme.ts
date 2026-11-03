@@ -1,4 +1,10 @@
-import { DEFAULT_THEME, TLDefaultColor, TLTheme, TLThemeColors } from 'tldraw'
+import greekItalic from '@fontsource-variable/source-serif-4/files/source-serif-4-greek-standard-italic.woff2?url'
+import greek from '@fontsource-variable/source-serif-4/files/source-serif-4-greek-standard-normal.woff2?url'
+import latinExtItalic from '@fontsource-variable/source-serif-4/files/source-serif-4-latin-ext-standard-italic.woff2?url'
+import latinExt from '@fontsource-variable/source-serif-4/files/source-serif-4-latin-ext-standard-normal.woff2?url'
+import latinItalic from '@fontsource-variable/source-serif-4/files/source-serif-4-latin-standard-italic.woff2?url'
+import latin from '@fontsource-variable/source-serif-4/files/source-serif-4-latin-standard-normal.woff2?url'
+import { DEFAULT_THEME, TLDefaultColor, TLFontFace, TLTheme, TLThemeColors, TLThemeFont } from 'tldraw'
 
 // Warm paper and ink, in the spirit of claude.ai's day theme.
 export const PAPER = '#F6F2E9'
@@ -77,8 +83,32 @@ const paperLight: TLThemeColors = {
 	) as Record<keyof typeof INKS, TLDefaultColor>),
 }
 
+/**
+ * Source Serif 4, a variable font with optical sizes, so the same face reads well in
+ * an 18 px note and a 44 px title. tldraw font faces take no unicode-range, so each
+ * subset is its own family and the font stack falls back glyph by glyph; physics
+ * boards need the Greek subset for θ, ω, and Δ.
+ */
+function serifFaces(family: string, normal: string, italic: string): TLFontFace[] {
+	return [
+		{ family, src: { url: normal, format: 'woff2' }, weight: '200 900', style: 'normal' },
+		{ family, src: { url: italic, format: 'woff2' }, weight: '200 900', style: 'italic' },
+	]
+}
+
+const serif: TLThemeFont = {
+	fontFamily: "'easel_serif', 'easel_serif_ext', 'easel_serif_greek', Georgia, serif",
+	faces: [
+		...serifFaces('easel_serif', latin, latinItalic),
+		...serifFaces('easel_serif_ext', latinExt, latinExtItalic),
+		...serifFaces('easel_serif_greek', greek, greekItalic),
+	],
+	icon: DEFAULT_THEME.fonts.serif.icon,
+}
+
 export const paperTheme: TLTheme = {
 	...DEFAULT_THEME,
+	fonts: { ...DEFAULT_THEME.fonts, serif },
 	colors: {
 		light: paperLight,
 		dark: DEFAULT_THEME.colors.dark,

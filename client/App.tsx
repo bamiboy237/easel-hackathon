@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
+	DefaultFontStyle,
 	DefaultSizeStyle,
 	ErrorBoundary,
 	TLComponents,
@@ -23,6 +24,8 @@ import { TargetShapeTool } from './tools/TargetShapeTool'
 
 // Customize tldraw's styles to play to the agent's strengths
 DefaultSizeStyle.setDefaultValue('s')
+// Text reads as print on paper; the hand-drawn font stays one click away
+DefaultFontStyle.setDefaultValue('serif')
 
 // Custom tools for picking context items
 const tools = [TargetShapeTool, TargetAreaTool]

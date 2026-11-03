@@ -74,6 +74,7 @@
 
 .chat-panel.tl-theme__light .agent-action-type-message {
 	color: var(--paper-ink);
+	font-family: 'Source Serif 4 Variable', Georgia, serif;
 	font-size: 14px;
 	line-height: 1.6;
 }
