@@ -32,9 +32,11 @@ export function buildSystemPrompt(
 	const { actionTypes, partTypes } = modePart
 	const flags = getSystemPromptFlags(actionTypes, partTypes)
 
-	const lines = [buildIntroPromptSection(flags)]
-	if (flags.canEdit || flags.hasReview) lines.push(canvasWorkSkill)
-	lines.push(buildRulesPromptSection(flags))
+	const lines = [
+		buildIntroPromptSection(flags),
+		canvasWorkSkill,
+		buildRulesPromptSection(flags),
+	]
 
 	if (withSchema) {
 		lines.push(buildSchemaPromptSection(modePart))

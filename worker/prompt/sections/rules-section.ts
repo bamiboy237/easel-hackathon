@@ -144,9 +144,8 @@ ${flagged(flags.hasMessage, '- If you want to communicate with the user, use the
 ${flagged(
 	flags.hasReview,
 	`- Use the \`review\` action to check your work.
-- When using the \`review\` action, pass in \`x\`, \`y\`, \`w\`, and \`h\` values to define the area of the canvas where you want to focus on for your review. The more specific the better, but make sure to leave some padding around the area.
-- Do not use the \`review\` action to check your work for simple tasks like creating, updating or moving a single shape. Assume you got it right.
-- If you use the \`review\` action and find you need to make changes, carry out the changes. You are allowed to call follow-up \`review\` events after that too, but there is no need to review if the changes are simple or if there were no changes.`
+- Pass \`x\`, \`y\`, \`w\`, and \`h\` to define its bounds. The next request includes a fresh view of that area.
+- Follow the canvas-work procedure for review scope, repairs, and completion.`
 )}
 ${flagged(
 	flags.hasThink && flags.hasMessage,
@@ -157,11 +156,10 @@ ${flagged(
 
 ${flagged(
 	flags.hasTodoList,
-	`- Use \`update-todo-list\` events liberally to keep an up to date list of your progress on the task at hand. When you are assigned a new task, use the action multiple times to sketch out your plan${flagged(flags.hasReview, '. You can then use the `review` action to check the todo list')}.
-	- Remember to always get started on the task after fleshing out a todo list.
-	- NEVER make a todo for waiting for the user to do something. If you need to wait for the user to do something, you can use the \`message\` action to communicate with the user.`
+	`- Use \`update-todo-list\` for substantial tasks. Keep each item tied to a visible part of the request and start the work after planning.
+	- If you need user input, ask with a \`message\` action instead of making a todo for waiting.`
 )}
-${flagged(flags.hasThink, '- Use `think` events liberally to work through each step of your strategy.')}
+${flagged(flags.hasThink, '- Use concise `think` events when a decision needs planning.')}
 ${flagged(
 	flags.hasScreenshotPart &&
 		(flags.hasBlurryShapesPart || flags.hasPeripheralShapesPart || flags.hasSelectedShapesPart),
@@ -195,41 +193,20 @@ ${flagged(
 	flags.hasReview,
 	`## Reviewing your work
 
-- Using the \`review\` action will always give you an up to date view of the state of the canvas. You'll see the results of any actions you just completed.
-- Remember to review your work when making multiple changes so that you can see the results of your work. Otherwise, you're flying blind.
+The canvas-work skill defines the visual checks and the repair budget.
+Use the review image with the current shape data to assess completed work.
 ${flagged(flags.hasSetMyView, '- If you navigate somewhere using the `setMyView` action, you get the same updated information about the canvas as if you had used the `review` action, so no need to review right after navigating.')}
-${flagged(flags.hasScreenshotPart, '- When reviewing your work, you should rely **most** on the image provided to find overlaps, assess quality, and ensure completeness.')}
-- Some important things to check for while reviewing:
-	- Are arrows properly connected to the shapes they are pointing to?
-	- Are labels properly contained within their containing shapes?
-	- Are labels properly positioned?
-	- Are any shapes overlapping? If so, decide whether to move the shapes, labels, or both.
-	- Are shapes floating in the air that were intended to be touching other shapes?
-- In a finished drawing or diagram:
-	- There should be no overlaps between shapes or labels.
-	- Arrows should be connected to the shapes they are pointing to, unless they are intended to be disconnected.
-	- Arrows should not overlap with other shapes.
-	- The overall composition should be balanced, like a good photo or directed graph.
-- It's important to review text closely. Make sure:
-	- Words are not cut off due to text wrapping. If this is the case, consider making the shape wider so that it can contain the full text, and rearranging other shapes to make room for this if necessary. Alternatively, consider shortening the text so that it can fit, or removing a text label and replacing it with a floating text shape. Important: Changing the height of a shape does not help this issue, as the text will still wrap. It's the mismatched *width* of the shape and the text that causes this issue, so adjust one of them.${flagged(
-		flags.hasMove,
-		`
-	- If text looks misaligned, it's best to manually adjust its position with the \`move\` action to put it in the right place.`
-	)}
-	- If text overflows out of a container that it's supposed to be inside, consider making the container wider, or shortening or wrapping the text so that it can fit.
-	- Spacing is important. If there is supposed to be a gap between shapes, make sure there is a gap. It's very common for text shapes to have spacing issues, so review them strictly.
-- REMEMBER: To be a good reviewer, come up with actionable steps to fix any issues you find, and carry those steps out.
-- IMPORTANT: If you made changes as part of a review, or if there is still work to do, schedule a follow-up review for tracking purposes.`
+`
 )}
 
 ### Finishing your work
 
-- Complete the task to the best of your ability. Schedule further work as many times as you need to complete the task, but be realistic about what is possible with the shapes you have available.
+- Complete the requested parts using the canvas-work procedure. Keep continuations tied to named unfinished work and respect its repair budget.
 ${flagged(
 	flags.hasReview && flags.hasMessage,
 	"- If the task is finished to a reasonable degree, it's better to give the user a final message than to pointlessly re-review what is already reviewed."
 )}
-${flagged(flags.hasReview, "- If there's still more work to do, you must `review` it. Otherwise it won't happen.")}
+${flagged(flags.hasReview, '- A `review` action schedules the next request. Without it, unfinished work will not continue automatically.')}
 ${flagged(flags.hasMessage, "- It's nice to speak to the user (with a `message` action) to let them know what you've done.")}
 
 ${flagged(
