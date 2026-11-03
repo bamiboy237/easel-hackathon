@@ -1,4 +1,5 @@
 import { Editor } from 'tldraw'
+import { BoardStore } from './BoardStore'
 import { AgentAppAgentsManager } from './managers/AgentAppAgentsManager'
 import { AgentAppPersistenceManager } from './managers/AgentAppPersistenceManager'
 import { BoardCommandManager } from './managers/BoardCommandManager'
@@ -32,6 +33,9 @@ export class TldrawAgentApp {
 
 	commands: BoardCommandManager
 
+	/** Keeps the board and its command log in the local board store. Null on boards that are not saved. */
+	board: BoardStore | null = null
+
 	/**
 	 * Handle crash and dispose events.
 	 */
@@ -55,12 +59,19 @@ export class TldrawAgentApp {
 		editor: Editor,
 		public options: {
 			onError: (e: any) => void
+			/** Save the board and its command log to the local board store. */
+			persistBoard?: boolean
 		}
 	) {
 		this._editor = editor
 		this.commands = new BoardCommandManager(editor)
 		this.agents = new AgentAppAgentsManager(this)
 		this.persistence = new AgentAppPersistenceManager(this)
+		if (options.persistBoard) {
+			this.board = new BoardStore(editor, this.commands, () =>
+				this.agents.getAgents().some((agent) => agent.requests.isGenerating())
+			)
+		}
 		editor.on('crash', this.handleCrash)
 		editor.on('dispose', this.handleDispose)
 	}
@@ -73,6 +84,7 @@ export class TldrawAgentApp {
 		this._editor.off('crash', this.handleCrash)
 		this._editor.off('dispose', this.handleDispose)
 		this.persistence.dispose()
+		this.board?.dispose()
 		this.agents.dispose()
 		this.commands.dispose()
 		this._editor = null

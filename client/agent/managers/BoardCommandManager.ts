@@ -33,6 +33,9 @@ export interface ExecuteOptions {
 	passId?: string
 	/** The user request the pass belongs to, shared by its follow-up passes. */
 	requestId?: string
+	/** For a revert or restore, the commands it undid and the records it kept. */
+	revertedCommandIds?: string[]
+	keptRecordIds?: string[]
 }
 
 /** A record a revert left as it is, and why. */
@@ -175,6 +178,28 @@ export class BoardCommandManager {
 		return this.history.get()
 	}
 
+	/**
+	 * Replace the log with commands loaded from the board store, after the board
+	 * itself was rebuilt from them. Revisions and stale checks continue from there.
+	 */
+	restore(commands: readonly unknown[]) {
+		const restored: BoardCommand[] = []
+		for (const command of commands) {
+			const parsed = BoardCommandSchema.safeParse(command)
+			if (parsed.success) restored.push(parsed.data)
+			else console.warn('Skipped a stored command that does not match the schema.', parsed.error)
+		}
+		this.rev = Math.max(0, ...restored.map((command) => command.rev ?? 0))
+		this.humanRevs.clear()
+		for (const command of restored) {
+			if (command.status !== 'applied' || command.origin === 'agent') continue
+			for (const id of [command.payload.added, command.payload.updated, command.payload.removed].flatMap(Object.keys)) {
+				this.humanRevs.set(id, command.rev!)
+			}
+		}
+		this.history.set(restored)
+	}
+
 	/** The current board revision. It increases by one with each applied command. */
 	getRev(): number {
 		return this.rev
@@ -191,7 +216,14 @@ export class BoardCommandManager {
 		origin: CommandOrigin,
 		type: string,
 		apply: () => void,
-		{ baseRev, allowedShapeIds = new Set(), passId, requestId }: ExecuteOptions = {}
+		{
+			baseRev,
+			allowedShapeIds = new Set(),
+			passId,
+			requestId,
+			revertedCommandIds,
+			keptRecordIds,
+		}: ExecuteOptions = {}
 	): BoardCommandResult {
 		CommandOriginSchema.parse(origin)
 		if (!type) throw new Error('A board command must have a type.')
@@ -235,7 +267,13 @@ export class BoardCommandManager {
 			return { status: 'rejected', reason: 'protected', changes: emptyChanges(), protectedRecordIds }
 		}
 
-		const commandId = this.record(origin, type, changes, { baseRev, passId, requestId })
+		const commandId = this.record(origin, type, changes, {
+			baseRev,
+			passId,
+			requestId,
+			revertedCommandIds,
+			keptRecordIds,
+		})
 		return { status: 'applied', commandId, changes }
 	}
 
@@ -380,24 +418,14 @@ export class BoardCommandManager {
 		this.stampsCreator = false
 		let result: BoardCommandResult
 		try {
-			result = this.execute('user', type, apply, {})
+			result = this.execute('user', type, apply, {
+				revertedCommandIds: reverted.map((c) => c.commandId),
+				keptRecordIds: kept.map((k) => k.id),
+			})
 		} finally {
 			this.stampsCreator = true
 		}
 		const commandId = result.status === 'applied' ? result.commandId : null
-		if (commandId) {
-			this.history.update((all) =>
-				all.map((command) =>
-					command.commandId === commandId
-						? BoardCommandSchema.parse({
-								...command,
-								revertedCommandIds: reverted.map((c) => c.commandId),
-								keptRecordIds: kept.map((k) => k.id),
-							})
-						: command
-				)
-			)
-		}
 		return { commandId, kept }
 	}
 
@@ -571,6 +599,8 @@ export class BoardCommandManager {
 			reason,
 			staleRecordIds,
 			protectedRecordIds,
+			revertedCommandIds,
+			keptRecordIds,
 		}: {
 			baseRev?: number
 			passId?: string
@@ -578,6 +608,8 @@ export class BoardCommandManager {
 			reason?: 'stale' | 'protected'
 			staleRecordIds?: string[]
 			protectedRecordIds?: string[]
+			revertedCommandIds?: string[]
+			keptRecordIds?: string[]
 		} = {}
 	) {
 		const { store } = this.editor
@@ -608,6 +640,8 @@ export class BoardCommandManager {
 			reason,
 			staleRecordIds,
 			protectedRecordIds,
+			revertedCommandIds,
+			keptRecordIds,
 			payload,
 			createdAt: Date.now(),
 		})

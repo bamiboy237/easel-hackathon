@@ -1,5 +1,6 @@
 import { createContext, memo, ReactNode, useCallback, useContext, useEffect, useState } from 'react'
 import { useEditor, useToasts, useValue } from 'tldraw'
+import { isReferenceBoard } from '../components/ReferenceBoard'
 import { TldrawAgent } from './TldrawAgent'
 import { TldrawAgentApp } from './TldrawAgentApp'
 
@@ -76,7 +77,8 @@ export const TldrawAgentAppProvider = memo(function TldrawAgentAppProvider({
 
 	// Create the TldrawAgentApp instance
 	useEffect(() => {
-		const instance = new TldrawAgentApp(editor, { onError: handleError })
+		const instance = new TldrawAgentApp(editor, { onError: handleError, persistBoard: !isReferenceBoard })
+		instance.board?.load().catch((error) => handleError(error))
 
 		// Load persisted state first (this will create agents from persisted data)
 		instance.persistence.loadState()

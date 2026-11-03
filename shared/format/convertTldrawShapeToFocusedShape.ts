@@ -1,9 +1,8 @@
 import {
 	Box,
-	createShapeId,
 	Editor,
+	Mat,
 	isPageId,
-	reverseRecordsDiff,
 	TLArrowBinding,
 	TLArrowShape,
 	TLDrawShape,
@@ -272,28 +271,19 @@ function getSimpleBounds(editor: Editor, shape: TLShape): Box {
 		return new Box(pagePoint.x, pagePoint.y, bounds.w, bounds.h)
 	}
 
-	// Create a mock shape and get the bounds, then reverse the creation of the mock shape
-	let mockBounds: Box | undefined
-	const diff = editor.store.extractingChanges(() => {
-		editor.run(
-			() => {
-				const mockId = createShapeId()
-				editor.createShape({
-					...shape,
-					id: mockId,
-				})
-				mockBounds = editor.getShapePageBounds(mockId)
-			},
-			{ ignoreShapeLock: false, history: 'ignore' }
-		)
-	})
-	const reverseDiff = reverseRecordsDiff(diff)
-	editor.store.applyDiff(reverseDiff)
-
-	if (!mockBounds) {
-		throw new Error('Failed to get bounds for shape')
+	// The shape is not on the board, for example a shape from an earlier diff.
+	// Measure its geometry directly. Creating a stand-in shape on the board would
+	// write to the store, and every store write is a board command.
+	let size = { w: 0, h: 0 }
+	try {
+		const local = editor.getShapeUtil(shape).getGeometry(shape).bounds
+		const corners = Mat.applyToPoints(Mat.Rotate(shape.rotation), local.corners)
+		const rotated = Box.FromPoints(corners)
+		size = { w: rotated.w, h: rotated.h }
+	} catch (error) {
+		console.warn('Could not measure a shape that is not on the board.', shape.id, error)
 	}
-	return new Box(pagePoint.x, pagePoint.y, mockBounds.w, mockBounds.h)
+	return new Box(pagePoint.x, pagePoint.y, size.w, size.h)
 }
 
 /**
