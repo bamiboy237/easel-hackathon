@@ -292,8 +292,17 @@ async function forward(request: IncomingMessage, response: ServerResponse) {
 		'Content-Type': upstream.headers.get('content-type') ?? 'application/json',
 	})
 	if (upstream.body) {
-		// The cast covers a clash between the Cloudflare and Node stream types.
-		await pipeline(Readable.fromWeb(upstream.body as never), response)
+		const startedAt = Date.now()
+		try {
+			// The cast covers a clash between the Cloudflare and Node stream types.
+			await pipeline(Readable.fromWeb(upstream.body as never), response)
+		} catch (error) {
+			// Say which side cut the stream, so a "Premature close" can be traced.
+			const side = abort.signal.aborted ? 'Easel closed the connection' : 'OpenAI ended the stream'
+			const seconds = Math.round((Date.now() - startedAt) / 1000)
+			const message = error instanceof Error ? error.message : String(error)
+			throw new Error(`${message} (${side} after ${seconds}s, at ${new Date().toISOString()})`)
+		}
 	} else {
 		response.end()
 	}
