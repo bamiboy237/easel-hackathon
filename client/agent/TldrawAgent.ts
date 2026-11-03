@@ -238,6 +238,14 @@ export class TldrawAgent {
 	 */
 	private isActingOnEditor = false
 
+	/** The board revision that the most recent request read. */
+	private lastBaseRev = 0
+
+	/** Get the board revision that the most recent request read. */
+	getLastBaseRev(): number {
+		return this.lastBaseRev
+	}
+
 	/**
 	 * Get whether the agent is currently acting on the editor.
 	 * @returns true if the agent is currently acting, false otherwise.
@@ -602,6 +610,10 @@ export class TldrawAgent {
 		const availableActions = modeDefinition.actions
 
 		const requestPromise = (async () => {
+			// The prompt reads the board at this revision, so every command from
+			// this response is checked against it.
+			const baseRev = this.commands.getRev()
+			this.lastBaseRev = baseRev
 			const prompt = await this.preparePrompt(request, helpers)
 			let incompleteDiff: RecordsDiff<TLRecord> | null = null
 			const actionPromises: Promise<void>[] = []
@@ -648,7 +660,7 @@ export class TldrawAgent {
 								}
 
 								// Apply the action to the app and editor
-								const { diff, promise } = this.actions.act(transformedAction, helpers)
+								const { diff, promise } = this.actions.act(transformedAction, helpers, baseRev)
 
 								if (promise) {
 									actionPromises.push(promise)

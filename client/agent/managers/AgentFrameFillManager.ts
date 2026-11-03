@@ -73,13 +73,21 @@ Fill only this frame. Do not create a map, and do not change other frames or the
 		}
 		if (moves.size === 0) return
 
-		this.agent.commands.execute('agent', 'file-into-frame', () => {
-			editor.run(
-				() => {
-					for (const [frameId, ids] of moves) editor.reparentShapes(ids, frameId)
-				},
-				{ ignoreShapeLock: true, history: 'ignore' }
-			)
-		})
+		const result = this.agent.commands.execute(
+			'agent',
+			'file-into-frame',
+			() => {
+				editor.run(
+					() => {
+						for (const [frameId, ids] of moves) editor.reparentShapes(ids, frameId)
+					},
+					{ ignoreShapeLock: true, history: 'ignore' }
+				)
+			},
+			{ baseRev: this.agent.getLastBaseRev() }
+		)
+		if (result.status === 'rejected') {
+			this.agent.actions.reportStaleCommand('file-into-frame', result.staleRecordIds)
+		}
 	}
 }

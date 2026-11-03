@@ -86,11 +86,13 @@ export class AgentActionManager extends BaseAgentManager {
 	 * Applies the action to the editor and tracks it in chat history.
 	 * @param action - The action to make the agent do.
 	 * @param helpers - The helpers to use for action execution.
+	 * @param baseRev - The board revision the agent read before it chose this action.
 	 * @returns An object containing the diff of changes made and a promise that resolves when the action completes.
 	 */
 	act(
 		action: Streaming<AgentAction>,
-		helpers: AgentHelpers = new AgentHelpers(this.agent)
+		helpers: AgentHelpers = new AgentHelpers(this.agent),
+		baseRev: number = this.agent.commands.getRev()
 	): {
 		diff: RecordsDiff<TLRecord>
 		promise: Promise<void> | null
@@ -108,13 +110,21 @@ export class AgentActionManager extends BaseAgentManager {
 
 		let promise: Promise<void> | null = null
 		let diff: RecordsDiff<TLRecord>
+		let rejected = false
 		try {
 			const apply = () => {
 				promise = util.applyAction(structuredClone(action), helpers) ?? null
 			}
-			diff = action.complete
-				? this.agent.commands.execute('agent', action._type, apply)
-				: this.agent.commands.withoutRecording(() => editor.store.extractingChanges(apply))
+			if (action.complete) {
+				const result = this.agent.commands.execute('agent', action._type, apply, { baseRev })
+				diff = result.changes
+				if (result.status === 'rejected') {
+					rejected = true
+					this.reportStaleCommand(action._type, result.staleRecordIds)
+				}
+			} else {
+				diff = this.agent.commands.withoutRecording(() => editor.store.extractingChanges(apply))
+			}
 		} catch (error) {
 			// always toast the error
 			this.agent.onError(error)
@@ -125,7 +135,7 @@ export class AgentActionManager extends BaseAgentManager {
 		}
 
 		// Add the action to chat history
-		if (util.savesToHistory()) {
+		if (util.savesToHistory() && !rejected) {
 			const historyItem: ChatHistoryItem = {
 				type: 'action',
 				action,
@@ -166,5 +176,20 @@ export class AgentActionManager extends BaseAgentManager {
 		}
 
 		return { diff, promise }
+	}
+
+	/**
+	 * Tell the agent that a command was rejected as stale, so that its next
+	 * pass reads the current board before it changes those shapes again.
+	 */
+	reportStaleCommand(type: string, staleRecordIds: string[]) {
+		const ids = staleRecordIds.map((id) => id.replace(/^(shape|binding):/, ''))
+		console.warn(`Rejected stale agent command "${type}". Changed since its base revision:`, ids)
+		this.agent.schedule({
+			agentMessages: [
+				`Your "${type}" action was rejected and nothing from it was applied, because the user changed these shapes after you read the board: ${ids.join(', ')}. Keep the user's changes. Look at the current board before you change those shapes again, and redo the action only if it is still needed.`,
+			],
+			source: 'self',
+		})
 	}
 }
