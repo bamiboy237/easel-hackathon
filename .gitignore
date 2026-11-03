@@ -7,3 +7,6 @@ dist/
 *.sqlite-*
 .DS_Store
 .delta/
+.dev.vars
+.wrangler/
+.tsbuild/
