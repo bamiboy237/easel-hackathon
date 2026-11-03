@@ -5,13 +5,14 @@ import {
 	GoogleGenerativeAIProviderOptions,
 } from '@ai-sdk/google'
 import { createOpenAI, OpenAIProvider, OpenAIResponsesProviderOptions } from '@ai-sdk/openai'
-import { LanguageModel, ModelMessage, streamText } from 'ai'
+import { jsonSchema, LanguageModel, ModelMessage, Output, streamText } from 'ai'
 import {
 	AgentModelDefinition,
 	AgentModelName,
 	getAgentModelDefinition,
 	isValidModelName,
 } from '../../shared/models'
+import { buildResponseSchema } from '../../shared/schema/buildResponseSchema'
 import { DebugPart } from '../../shared/schema/PromptPartDefinitions'
 import { AgentAction } from '../../shared/types/AgentAction'
 import { AgentPrompt } from '../../shared/types/AgentPrompt'
@@ -70,6 +71,7 @@ export class AgentService {
 
 		const modelDefinition = getAgentModelDefinition(modelId)
 		const systemPrompt = buildSystemPrompt(prompt)
+		const usesNativeJsonSchema = ['meta', 'openai', 'chatgpt'].includes(modelDefinition.provider)
 
 		// Build messages with provider-specific options
 		const messages: ModelMessage[] = []
@@ -125,6 +127,13 @@ export class AgentService {
 				// Opus 4.7+ removed `temperature` (and top_p/top_k); sending it returns a 400.
 				...(modelDefinition.supportsTemperature ? { temperature: 0 } : {}),
 				providerOptions: getProviderOptions(modelDefinition),
+				experimental_output: usesNativeJsonSchema
+					? Output.object({
+						schema: jsonSchema<{ actions: AgentAction[] }>(
+							buildResponseSchema(prompt.mode.actionTypes, prompt.mode.modeType)
+						),
+					})
+					: undefined,
 			})
 
 			const canForceResponseStart =
@@ -134,12 +143,35 @@ export class AgentService {
 			if (canForceResponseStart) {
 				for (const action of reader.push('{"actions": [{"_type":')) yield action
 			}
+			const commentary = new Map<string, { text: string; startedAt: number }>()
 			let finishReason = 'unknown'
 			for await (const part of fullStream) {
 				switch (part.type) {
-					case 'text-delta':
-						for (const action of reader.push(part.text)) yield action
+					case 'text-start':
+						if (part.providerMetadata?.openai?.phase === 'commentary') {
+							commentary.set(part.id, { text: '', startedAt: Date.now() })
+						}
 						break
+					case 'text-delta':
+						if (commentary.has(part.id)) {
+							commentary.get(part.id)!.text += part.text
+						} else {
+							for (const action of reader.push(part.text)) yield action
+						}
+						break
+					case 'text-end': {
+						const progress = commentary.get(part.id)
+						if (progress?.text && prompt.mode.actionTypes.includes('message')) {
+							yield {
+								_type: 'message',
+								text: progress.text,
+								complete: true,
+								time: Date.now() - progress.startedAt,
+							}
+						}
+						commentary.delete(part.id)
+						break
+					}
 					case 'finish':
 						finishReason = part.finishReason
 						break

@@ -4,6 +4,7 @@ import { AgentPrompt } from '../../shared/types/AgentPrompt'
 import { getSystemPromptFlags } from './getSystemPromptFlags'
 import { buildIntroPromptSection } from './sections/intro-section'
 import { buildRulesPromptSection } from './sections/rules-section'
+import canvasWorkSkill from './skills/canvas-work.md?raw'
 
 /**
  * Build the system prompt for the agent.
@@ -31,7 +32,9 @@ export function buildSystemPrompt(
 	const { actionTypes, partTypes } = modePart
 	const flags = getSystemPromptFlags(actionTypes, partTypes)
 
-	const lines = [buildIntroPromptSection(flags), buildRulesPromptSection(flags)]
+	const lines = [buildIntroPromptSection(flags)]
+	if (flags.canEdit || flags.hasReview) lines.push(canvasWorkSkill)
+	lines.push(buildRulesPromptSection(flags))
 
 	if (withSchema) {
 		lines.push(buildSchemaPromptSection(modePart))
@@ -48,6 +51,8 @@ function buildSchemaPromptSection(modePart: ModePart) {
 	return `## JSON schema
 
 This is the JSON schema for the events you can return. You must conform to this schema. You must only return things in this format, otherwise your response will error. Output ONLY the JSON itself — do not add any preamble, explanation, or commentary before or after it, and do NOT wrap your response in a markdown code block (e.g. \`\`\`json). Just the raw JSON object.
+
+Put explanations and progress updates in message actions. When no action is needed, return {"actions":[]}. Use this same response format for reviews and follow-up requests.
 
 ${JSON.stringify(schema, null, 2)}
 `

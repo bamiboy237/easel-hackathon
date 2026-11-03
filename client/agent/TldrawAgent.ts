@@ -396,15 +396,16 @@ export class TldrawAgent {
 		}
 		this.requests.setActiveRequest(request)
 
-		// Call an external helper function to request the agent
-		const { promise, cancel } = this.requestAgentActions(request)
-
-		this.requests.setCancelFn(cancel)
-
-		const results = await promise
-		this.requests.clearActiveRequest()
-
-		return results
+		try {
+			const { promise, cancel } = this.requestAgentActions(request)
+			this.requests.setCancelFn(cancel)
+			return await promise
+		} catch (error) {
+			if (this.requests.getActiveRequest() === request) this.cancel()
+			throw error
+		} finally {
+			if (this.requests.getActiveRequest() === request) this.requests.clearActiveRequest()
+		}
 	}
 
 	/**
@@ -673,6 +674,7 @@ export class TldrawAgent {
 					return
 				}
 				this.onError(e)
+				throw e
 			}
 		})()
 
