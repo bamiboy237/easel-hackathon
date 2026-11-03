@@ -32,6 +32,7 @@ const _AGENT_MODE_CHART: Record<AgentModeDefinition['type'], AgentModeNode> = {
 		},
 		onEnter(agent, _fromMode) {
 			agent.todos.reset()
+			agent.frames.reset()
 			agent.userAction.clearHistory()
 		},
 	},
@@ -61,6 +62,7 @@ const _AGENT_MODE_CHART: Record<AgentModeDefinition['type'], AgentModeNode> = {
 			if (request.source === 'user') {
 				agent.todos.flush()
 				agent.lints.clearCreatedShapes()
+				agent.frames.reset()
 			}
 		},
 
@@ -76,6 +78,9 @@ const _AGENT_MODE_CHART: Record<AgentModeDefinition['type'], AgentModeNode> = {
 				)
 				return
 			}
+
+			// Fill the next frame of a map, one request per frame
+			if (agent.frames.scheduleNext()) return
 
 			// Check if there are unsurfaced lints on created shapes
 			if (agent.lints.hasUnsurfacedLints(agent.lints.getCreatedShapes())) {

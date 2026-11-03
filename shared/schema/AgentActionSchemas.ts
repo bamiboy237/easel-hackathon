@@ -151,6 +151,29 @@ export const LabelAction = z
 
 export type LabelAction = z.infer<typeof LabelAction>
 
+// Map Action
+export const MapAction = z
+	.object({
+		_type: z.literal('map'),
+		intent: z.string(),
+		frameWidth: z.number(),
+		frameHeight: z.number(),
+		frames: z.array(
+			z.object({
+				frameId: SimpleShapeIdSchema,
+				title: z.string(),
+				description: z.string(),
+			})
+		),
+	})
+	.meta({
+		title: 'Map',
+		description:
+			'The AI lays out a row of empty, titled frames for work with several connected parts, each with a one-line description of what it will hold. The app places the row and then asks the AI to fill each frame in order, one follow-up request per frame. Use 2 to 6 frames. Set frameWidth and frameHeight to the size the largest part needs.',
+	})
+
+export type MapAction = z.infer<typeof MapAction>
+
 // Message Action
 export const MessageAction = z
 	.object({

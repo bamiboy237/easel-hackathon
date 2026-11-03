@@ -20,6 +20,7 @@ import { AgentChatManager } from './managers/AgentChatManager'
 import { AgentChatOriginManager } from './managers/AgentChatOriginManager'
 import { AgentContextManager } from './managers/AgentContextManager'
 import { AgentDebugFlags, AgentDebugManager } from './managers/AgentDebugManager'
+import { AgentFrameFillManager } from './managers/AgentFrameFillManager'
 import { AgentLintManager } from './managers/AgentLintManager'
 import { AgentModelNameManager } from './managers/AgentModelNameManager'
 import { AgentModeManager } from './managers/AgentModeManager'
@@ -91,6 +92,9 @@ export class TldrawAgent {
 	/** The debug manager associated with this agent. */
 	debug: AgentDebugManager
 
+	/** The frame fill manager, which fills a map's frames one request at a time. */
+	frames: AgentFrameFillManager
+
 	/** The lint manager associated with this agent. */
 	lints: AgentLintManager
 
@@ -144,6 +148,7 @@ export class TldrawAgent {
 		this.chatOrigin = new AgentChatOriginManager(this)
 		this.context = new AgentContextManager(this)
 		this.debug = new AgentDebugManager(this)
+		this.frames = new AgentFrameFillManager(this)
 		this.lints = new AgentLintManager(this)
 		this.modelName = new AgentModelNameManager(this)
 		this.requests = new AgentRequestManager(this)
@@ -536,6 +541,7 @@ export class TldrawAgent {
 		}
 
 		this.requests.cancel()
+		this.frames.reset()
 	}
 
 	/**
