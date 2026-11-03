@@ -42,7 +42,7 @@ export function ChatPanel() {
 	}, [agent])
 
 	return (
-		<div className="chat-panel tl-theme__dark">
+		<div className="chat-panel tl-theme__light">
 			<div className="chat-header">
 				<button className="new-chat-button" onClick={handleNewChat}>
 					+

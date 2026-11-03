@@ -16,6 +16,7 @@ import { ChatPanel } from './components/ChatPanel'
 import { ChatPanelFallback } from './components/ChatPanelFallback'
 import { CustomHelperButtons } from './components/CustomHelperButtons'
 import { isReferenceBoard, ReferenceBoardLoader } from './components/ReferenceBoard'
+import { paperTheme } from './theme/paperTheme'
 import { AgentHighlightOverlayUtil } from './overlays/AgentHighlightOverlayUtil'
 import { TargetAreaTool } from './tools/TargetAreaTool'
 import { TargetShapeTool } from './tools/TargetShapeTool'
@@ -26,6 +27,7 @@ DefaultSizeStyle.setDefaultValue('s')
 // Custom tools for picking context items
 const tools = [TargetShapeTool, TargetAreaTool]
 const overlayUtils = [AgentHighlightOverlayUtil]
+const themes = { default: paperTheme }
 const overrides: TLUiOverrides = {
 	tools: (editor, tools) => {
 		return {
@@ -82,6 +84,7 @@ function App() {
 						overlayUtils={overlayUtils}
 						overrides={overrides}
 						components={components}
+						themes={themes}
 					>
 						<TldrawAgentAppProvider onMount={setApp} onUnmount={handleUnmount} />
 						{isReferenceBoard && <ReferenceBoardLoader />}

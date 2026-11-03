@@ -1,0 +1,105 @@
+/* Paper day theme for the tldraw UI and the chat panel. Canvas colors live in paperTheme.ts. */
+
+.tl-theme__light {
+	--paper: #f6f2e9;
+	--paper-sheet: #fbf8f2;
+	--paper-rule: #e4ddcf;
+	--paper-ink: #1f1e1b;
+	--paper-clay: #c2603e;
+
+	--tl-color-background: var(--paper);
+	--tl-color-selection-fill: rgba(194, 96, 62, 0.14);
+	--tl-color-selection-stroke: var(--paper-clay);
+	--tl-color-grid: hsl(38, 14%, 62%);
+
+	--tl-color-low: #efe9dd;
+	--tl-color-low-border: var(--paper-rule);
+	--tl-color-muted-0: rgba(60, 45, 20, 0.02);
+	--tl-color-muted-1: rgba(60, 45, 20, 0.08);
+	--tl-color-muted-2: rgba(60, 45, 20, 0.045);
+	--tl-color-hint: rgba(60, 45, 20, 0.06);
+	--tl-color-divider: var(--paper-rule);
+	--tl-color-panel: var(--paper-sheet);
+	--tl-color-panel-contrast: #fffdf8;
+	--tl-color-panel-overlay: rgba(251, 248, 242, 0.86);
+	--tl-color-panel-transparent: rgba(251, 248, 242, 0);
+	--tl-color-selected: var(--paper-clay);
+	--tl-color-selected-contrast: #fffdf8;
+	--tl-color-focus: var(--paper-clay);
+	--tl-color-tooltip: var(--paper-ink);
+
+	--tl-color-text: var(--paper-ink);
+	--tl-color-text-0: #262420;
+	--tl-color-text-1: #3a3731;
+	--tl-color-text-3: #7d776b;
+	--tl-color-text-disabled: #a9a294;
+	--tl-color-text-shadow: var(--paper);
+
+	--tl-color-primary: var(--paper-clay);
+
+	/* Soft, warm shadows: a sheet resting on paper rather than a card floating over it. */
+	--tl-shadow-1: 0px 0px 0px 1px rgba(60, 45, 20, 0.08), 0px 1px 2px rgba(60, 45, 20, 0.06);
+	--tl-shadow-2:
+		0px 0px 0px 1px rgba(60, 45, 20, 0.08), 0px 2px 6px rgba(60, 45, 20, 0.07),
+		0px 8px 24px rgba(60, 45, 20, 0.05);
+	--tl-shadow-3:
+		0px 0px 0px 1px rgba(60, 45, 20, 0.1), 0px 4px 12px rgba(60, 45, 20, 0.08),
+		0px 12px 32px rgba(60, 45, 20, 0.06);
+	--tl-shadow-4:
+		0px 0px 0px 1px rgba(60, 45, 20, 0.1), 0px 6px 16px rgba(60, 45, 20, 0.1),
+		0px 16px 40px rgba(60, 45, 20, 0.08);
+}
+
+.chat-panel.tl-theme__light {
+	--tl-color-text-2: #8a8476;
+	--tl-color-primary-hover: #a9502f;
+	background-color: #faf7f0;
+	border-left: 1px solid var(--paper-rule);
+	font-size: 13px;
+}
+
+/* The user's prompt sits in a soft paper pill; the agent's reply reads as plain text. */
+.chat-panel.tl-theme__light .chat-history-prompt-container {
+	background-color: #faf7f0;
+}
+
+.chat-panel.tl-theme__light .chat-history-prompt {
+	background-color: #efe9dd;
+	box-shadow: none;
+	border-radius: 12px;
+	padding: 10px 12px;
+	font-size: 13px;
+	color: var(--paper-ink);
+}
+
+.chat-panel.tl-theme__light .agent-action-type-message {
+	color: var(--paper-ink);
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.chat-panel.tl-theme__light .agent-changes {
+	background-color: transparent;
+	border-left: 2px solid var(--paper-rule);
+	border-radius: 0;
+}
+
+.chat-panel.tl-theme__light .chat-input {
+	background-color: #faf7f0;
+}
+
+.chat-panel.tl-theme__light .chat-input form {
+	background-color: #fffdf8;
+	border: 1px solid var(--paper-rule);
+	border-radius: 16px;
+	box-shadow: 0px 2px 8px rgba(60, 45, 20, 0.06);
+}
+
+.chat-panel.tl-theme__light .chat-input-submit {
+	box-shadow: none;
+}
+
+.chat-panel.tl-theme__light .todo-list {
+	background-color: #fffdf8;
+	border-color: var(--paper-rule);
+}
