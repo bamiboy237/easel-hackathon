@@ -54,7 +54,6 @@ export function ChatPanel() {
 			</div>
 			{isEmpty ? (
 				<div className="chat-empty">
-					<p className="chat-empty-title">What are we thinking about?</p>
 					<p className="chat-empty-hint">
 						Ask a question, or select something on the board and ask about it.
 					</p>

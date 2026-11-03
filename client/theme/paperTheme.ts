@@ -7,11 +7,13 @@ import latin from '@fontsource-variable/source-serif-4/files/source-serif-4-lati
 import { DEFAULT_THEME, TLDefaultColor, TLFontFace, TLTheme, TLThemeColors, TLThemeFont } from 'tldraw'
 
 // Warm paper and ink, in the spirit of claude.ai's day theme.
-export const PAPER = '#FAF7F0'
-const SHEET = '#FEFCF8'
+export const PAPER = '#FAF8F3'
+const SHEET = '#FFFEFB'
 const INK = '#1F1E1B'
-const RULE = '#E3DBCB'
+const RULE = '#E2DED4'
 export const CLAY = '#C2603E'
+// Blue-black fountain-pen ink for selection and focus
+const ACCENT = '#2E4A6E'
 
 /**
  * Ink tones for each palette color. Hues keep their usual meaning, so an agent
@@ -91,13 +93,13 @@ const paperLight: TLThemeColors = {
 	solid: SHEET,
 	cursor: INK,
 	noteBorder: RULE,
-	snap: CLAY,
-	selectionStroke: CLAY,
-	selectionFill: 'rgba(194, 96, 62, 0.14)',
+	snap: ACCENT,
+	selectionStroke: ACCENT,
+	selectionFill: 'rgba(46, 74, 110, 0.12)',
 	brushFill: 'rgba(31, 30, 27, 0.05)',
 	brushStroke: 'rgba(31, 30, 27, 0.25)',
 	selectedContrast: SHEET,
-	laser: CLAY,
+	laser: ACCENT,
 	...(Object.fromEntries(
 		Object.entries(INKS).map(([name, ink]) => [
 			name,

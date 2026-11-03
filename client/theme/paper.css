@@ -1,20 +1,20 @@
 /* Paper day theme for the tldraw UI and the chat panel. Canvas colors live in paperTheme.ts. */
 
 .tl-theme__light {
-	--paper: #faf7f0;
-	--paper-sheet: #fefcf8;
-	--paper-panel: #fcfaf5;
-	--paper-card: #fffefb;
-	--paper-wash: #f2ece1;
-	--paper-hover: #f3eee5;
-	--paper-pressed: #ebe4d6;
-	--paper-rule: #e9e2d4;
+	--paper: #faf8f3;
+	--paper-sheet: #fffefb;
+	--paper-panel: #fcfbf8;
+	--paper-card: #fffffd;
+	--paper-wash: #f0eee8;
+	--paper-hover: #f2f0eb;
+	--paper-pressed: #e7e4dc;
+	--paper-rule: #e6e2d9;
 	--paper-ink: #1f1e1b;
-	--paper-clay: #c2603e;
+	--paper-accent: #2e4a6e;
 
 	--tl-color-background: var(--paper);
-	--tl-color-selection-fill: rgba(194, 96, 62, 0.14);
-	--tl-color-selection-stroke: var(--paper-clay);
+	--tl-color-selection-fill: rgba(46, 74, 110, 0.12);
+	--tl-color-selection-stroke: var(--paper-accent);
 	--tl-color-grid: hsl(38, 14%, 62%);
 
 	--tl-color-low: var(--paper-wash);
@@ -28,9 +28,9 @@
 	--tl-color-panel-contrast: var(--paper-card);
 	--tl-color-panel-overlay: rgba(251, 248, 242, 0.86);
 	--tl-color-panel-transparent: rgba(251, 248, 242, 0);
-	--tl-color-selected: var(--paper-clay);
+	--tl-color-selected: var(--paper-accent);
 	--tl-color-selected-contrast: var(--paper-card);
-	--tl-color-focus: var(--paper-clay);
+	--tl-color-focus: var(--paper-accent);
 	--tl-color-tooltip: var(--paper-ink);
 
 	--tl-color-text: var(--paper-ink);
@@ -40,7 +40,7 @@
 	--tl-color-text-disabled: #a9a294;
 	--tl-color-text-shadow: var(--paper);
 
-	--tl-color-primary: var(--paper-clay);
+	--tl-color-primary: var(--paper-accent);
 
 	/* Soft, warm shadows: a sheet resting on paper rather than a card floating over it. */
 	--tl-shadow-1: 0px 0px 0px 1px rgba(60, 45, 20, 0.08), 0px 1px 2px rgba(60, 45, 20, 0.06);
@@ -60,7 +60,7 @@
  * so it reads as the surface rather than as marks on the board.
  */
 .tl-theme__light .tl-background {
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.36 0 0 0 0 0.22 0 0 0 0.055 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E");
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.38 0 0 0 0 0.36 0 0 0 0 0.31 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
 /* Quiet frames: a serif title like a section heading, with no chip behind it. */
@@ -86,7 +86,7 @@
 
 .chat-panel.tl-theme__light {
 	--tl-color-text-2: #8a8476;
-	--tl-color-primary-hover: #a9502f;
+	--tl-color-primary-hover: #22384f;
 	background-color: var(--paper-panel);
 	border-left: 1px solid var(--paper-rule);
 	font-size: 13px;
@@ -123,40 +123,32 @@
 
 .chat-empty {
 	flex: 1;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	padding: 0 28px 64px;
+	padding: 20px 20px 0;
 	user-select: none;
-}
-
-.chat-empty-title {
-	margin: 0 0 8px;
-	font-family: 'Source Serif 4 Variable', Georgia, serif;
-	font-size: 24px;
-	line-height: 1.25;
-	color: var(--paper-ink);
 }
 
 .chat-empty-hint {
 	margin: 0;
-	font-size: 13px;
+	font-family: 'Source Serif 4 Variable', Georgia, serif;
+	font-style: italic;
+	font-size: 14px;
 	line-height: 1.5;
 	color: var(--tl-color-text-3);
 }
 
-/* The user's prompt sits in a soft paper pill; the agent's reply reads as plain text. */
+/* The user's prompt reads like a margin note in blue-black ink; the agent's reply reads as plain text. */
 .chat-panel.tl-theme__light .chat-history-prompt-container {
 	background-color: var(--paper-panel);
 }
 
 .chat-panel.tl-theme__light .chat-history-prompt {
-	background-color: var(--paper-wash);
+	background-color: transparent;
 	box-shadow: none;
-	border-radius: 12px;
-	padding: 10px 12px;
+	border-left: 2px solid var(--paper-accent);
+	border-radius: 0;
+	padding: 2px 0 2px 12px;
 	font-size: 13px;
-	color: var(--paper-ink);
+	color: var(--paper-accent);
 }
 
 .chat-panel.tl-theme__light .agent-action-type-message {
