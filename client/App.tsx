@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
+	DefaultDashStyle,
 	DefaultFontStyle,
 	DefaultSizeStyle,
 	ErrorBoundary,
@@ -26,6 +27,7 @@ import { TargetShapeTool } from './tools/TargetShapeTool'
 DefaultSizeStyle.setDefaultValue('s')
 // Text reads as print on paper; the hand-drawn font stays one click away
 DefaultFontStyle.setDefaultValue('serif')
+DefaultDashStyle.setDefaultValue('solid')
 
 // Custom tools for picking context items
 const tools = [TargetShapeTool, TargetAreaTool]

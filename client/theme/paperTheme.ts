@@ -47,7 +47,7 @@ function inkColor(ink: string): TLDefaultColor {
 		solid: ink,
 		fill: ink,
 		linedFill: mix(ink, PAPER, 0.25),
-		semi: mix(ink, PAPER, 0.82),
+		semi: mix(ink, SHEET, 0.86),
 		pattern: mix(ink, PAPER, 0.35),
 		// Frames are quiet sheets: a hairline in the frame's tone over slightly lighter paper.
 		frameHeadingStroke: mix(ink, RULE, 0.7),

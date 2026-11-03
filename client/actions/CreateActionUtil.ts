@@ -143,7 +143,7 @@ const SHAPE_DEFAULTS: ShapeDefaultsMap = {
 		props: {
 			size: 's',
 			color: 'black',
-			dash: 'draw',
+			dash: 'solid',
 			points: {
 				a1: {
 					id: 'a1',
@@ -169,7 +169,7 @@ const SHAPE_DEFAULTS: ShapeDefaultsMap = {
 			arrowheadStart: 'none',
 			bend: 0,
 			color: 'black',
-			dash: 'draw',
+			dash: 'solid',
 			elbowMidPoint: 0.5,
 			end: { x: 100, y: 0 },
 			fill: 'none',
@@ -188,7 +188,7 @@ const SHAPE_DEFAULTS: ShapeDefaultsMap = {
 		props: {
 			align: 'middle',
 			color: 'black',
-			dash: 'draw',
+			dash: 'solid',
 			fill: 'none',
 			font: 'serif',
 			geo: 'rectangle',
