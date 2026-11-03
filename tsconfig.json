@@ -39,6 +39,7 @@
 		"node_modules"
 	],
 	"include": [
+		"chatgpt",
 		"client",
 		"shared",
 		"worker"

@@ -1,5 +1,5 @@
 export type AgentModelName = keyof typeof AGENT_MODEL_DEFINITIONS
-export type AgentModelProvider = 'openai' | 'anthropic' | 'google' | 'meta'
+export type AgentModelProvider = 'openai' | 'anthropic' | 'google' | 'meta' | 'chatgpt'
 
 /** Adaptive-thinking mode passed to the Anthropic provider. */
 export type AnthropicThinking = 'adaptive' | 'disabled'
@@ -52,11 +52,17 @@ export interface MetaModelDefinition extends BaseAgentModelDefinition {
 	reasoningEffort: OpenAIReasoningEffort
 }
 
+export interface ChatGPTModelDefinition extends BaseAgentModelDefinition {
+	provider: 'chatgpt'
+	reasoningEffort: OpenAIReasoningEffort
+}
+
 export type AgentModelDefinition =
 	| AnthropicModelDefinition
 	| GoogleModelDefinition
 	| OpenAIModelDefinition
 	| MetaModelDefinition
+	| ChatGPTModelDefinition
 
 export const AGENT_MODEL_DEFINITIONS = {
 	// Meta models
@@ -64,6 +70,16 @@ export const AGENT_MODEL_DEFINITIONS = {
 		name: 'muse-wonder-1.0',
 		id: 'muse-wonder-1.0',
 		provider: 'meta',
+		supportsPrefill: false,
+		supportsTemperature: false,
+		reasoningEffort: 'medium',
+	},
+
+	// ChatGPT plan models, served through chatgpt/helper.ts
+	'gpt-6.1-sol': {
+		name: 'gpt-6.1-sol',
+		id: 'gpt-6.1-sol',
+		provider: 'chatgpt',
 		supportsPrefill: false,
 		supportsTemperature: false,
 		reasoningEffort: 'medium',

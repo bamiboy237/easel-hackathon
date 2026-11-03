@@ -27,12 +27,15 @@ export class AgentService {
 	anthropic: AnthropicProvider
 	google: GoogleGenerativeAIProvider
 	meta: OpenAIProvider
+	chatgpt: OpenAIProvider
 
 	constructor(env: Environment) {
 		this.openai = createOpenAI({ apiKey: env.OPENAI_API_KEY })
 		this.anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY })
 		this.google = createGoogleGenerativeAI({ apiKey: env.GOOGLE_API_KEY })
 		this.meta = createOpenAI({ apiKey: env.MODEL_API_KEY, baseURL: 'https://api.meta.ai/v1' })
+		// chatgpt/helper.ts holds the real token, so this key is never used.
+		this.chatgpt = createOpenAI({ apiKey: 'unused', baseURL: 'http://127.0.0.1:8788/v1' })
 	}
 
 	getModel(modelName: AgentModelName): LanguageModel {
@@ -222,6 +225,7 @@ function getProviderOptions(definition: AgentModelDefinition): StreamTextProvide
 			}
 		case 'openai':
 		case 'meta':
+		case 'chatgpt':
 			return {
 				openai: {
 					reasoningEffort: definition.reasoningEffort,
