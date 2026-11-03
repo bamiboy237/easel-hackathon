@@ -45,6 +45,7 @@ import { TimePartUtil } from '../parts/TimePartUtil'
 import { TodoListPartUtil } from '../parts/TodoListPartUtil'
 import { UserActionHistoryPartUtil } from '../parts/UserActionHistoryPartUtil'
 import { UserViewportBoundsPartUtil } from '../parts/UserViewportBoundsPartUtil'
+import { ClearSpacePartUtil } from '../parts/ClearSpacePartUtil'
 
 /**
  * What an agent can see and do when in a given mode.
@@ -110,6 +111,7 @@ export const AGENT_MODE_DEFINITIONS = [
 			// Viewport
 			ScreenshotPartUtil.type,
 			UserViewportBoundsPartUtil.type,
+			ClearSpacePartUtil.type,
 			AgentViewportBoundsPartUtil.type,
 
 			// Shapes

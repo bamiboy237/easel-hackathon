@@ -103,6 +103,13 @@ export interface UserViewportBoundsPart {
 	userBounds: BoxModel | null
 }
 
+export interface ClearSpacePart {
+	type: 'clearSpace'
+	/** What the space is next to: the shapes the request is about, or the user's view. */
+	near: 'subject' | 'view'
+	space: BoxModel | null
+}
+
 export interface AgentViewportBoundsPart {
 	type: 'agentViewportBounds'
 	agentBounds: BoxModel | null
@@ -505,6 +512,22 @@ export const UserViewportBoundsPartDefinition: PromptPartDefinition<UserViewport
 		}
 		return [
 			`The bounds of the part of the canvas that the user can currently see are: ${JSON.stringify(userBounds)}`,
+		]
+	},
+}
+
+// ClearSpace
+export const ClearSpacePartDefinition: PromptPartDefinition<ClearSpacePart> = {
+	type: 'clearSpace',
+	priority: -75,
+	buildContent({ near, space }: ClearSpacePart) {
+		if (!space) return []
+		const where =
+			near === 'subject'
+				? 'beside the shapes this request is about'
+				: "in the part of the board the user can see"
+		return [
+			`Clear space for new work ${where}: ${JSON.stringify(space)}. Unless the request names another place, put new work there, and grow it from there into open space rather than over other shapes.`,
 		]
 	},
 }

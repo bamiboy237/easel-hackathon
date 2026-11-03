@@ -65,10 +65,8 @@ export const MapActionUtil = registerActionUtil(
 
 			this.agent.frames.enqueue(frames)
 
-			const mapBounds = new Box(origin.x, origin.y, frames.length * (w + FRAME_GAP) - FRAME_GAP, h)
-			if (!editor.getViewportPageBounds().contains(mapBounds)) {
-				editor.zoomToBounds(mapBounds, { inset: 80, animation: { duration: 300 } })
-			}
+			// The user's camera stays where it is. The map's frames show up in the
+			// agent's view, and the user can go to them when they want.
 		}
 	}
 )
