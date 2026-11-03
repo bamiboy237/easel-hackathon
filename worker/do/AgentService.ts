@@ -20,7 +20,7 @@ import { Environment } from '../environment'
 import { buildMessages } from '../prompt/buildMessages'
 import { buildSystemPrompt } from '../prompt/buildSystemPrompt'
 import { getModelName } from '../prompt/getModelName'
-import { closeAndParseJson } from './closeAndParseJson'
+import { ActionStream } from './ActionStream'
 
 export class AgentService {
 	openai: OpenAIProvider
@@ -118,82 +118,38 @@ export class AgentService {
 		}
 
 		try {
-			const { textStream } = streamText({
+			const { fullStream } = streamText({
 				model,
 				messages,
 				maxOutputTokens: 8192,
 				// Opus 4.7+ removed `temperature` (and top_p/top_k); sending it returns a 400.
 				...(modelDefinition.supportsTemperature ? { temperature: 0 } : {}),
 				providerOptions: getProviderOptions(modelDefinition),
-				onAbort() {
-					console.warn('Stream actions aborted')
-				},
-				onError: (e) => {
-					console.error('Stream text error:', e)
-					throw e
-				},
 			})
 
 			const canForceResponseStart =
 				(provider === 'anthropic.messages' || provider === 'google.generative-ai') &&
 				modelDefinition.supportsPrefill
-			let buffer = canForceResponseStart ? '{"actions": [{"_type":' : ''
-			let cursor = 0
-			let maybeIncompleteAction: AgentAction | null = null
-
-			let startTime = Date.now()
-			for await (const text of textStream) {
-				buffer += text
-				const partialObject = closeAndParseJson(buffer)
-				if (!partialObject) continue
-
-				const actions = partialObject.actions
-				if (!Array.isArray(actions)) continue
-				if (actions.length === 0) continue
-
-				// If the events list is ahead of the cursor, we know we've completed the current event
-				// We can complete the event and move the cursor forward
-				if (actions.length > cursor) {
-					const action = actions[cursor - 1] as AgentAction
-					if (action) {
-						yield {
-							...action,
-							complete: true,
-							time: Date.now() - startTime,
-						}
-						maybeIncompleteAction = null
-					}
-					cursor++
-				}
-
-				// Now let's check the (potentially new) current event
-				// And let's yield it in its (potentially incomplete) state
-				const action = actions[cursor - 1] as AgentAction
-				if (action) {
-					// If we don't have an incomplete event yet, this is the start of a new one
-					if (!maybeIncompleteAction) {
-						startTime = Date.now()
-					}
-
-					maybeIncompleteAction = action
-
-					// Yield the potentially incomplete event
-					yield {
-						...action,
-						complete: false,
-						time: Date.now() - startTime,
-					}
+			const reader = new ActionStream(prompt.mode?.modeType ?? 'working')
+			if (canForceResponseStart) {
+				for (const action of reader.push('{"actions": [{"_type":')) yield action
+			}
+			let finishReason = 'unknown'
+			for await (const part of fullStream) {
+				switch (part.type) {
+					case 'text-delta':
+						for (const action of reader.push(part.text)) yield action
+						break
+					case 'finish':
+						finishReason = part.finishReason
+						break
+					case 'error':
+						throw part.error
+					case 'abort':
+						throw new Error('Agent response was canceled.')
 				}
 			}
-
-			// If we've finished receiving events, but there's still an incomplete event, we need to complete it
-			if (maybeIncompleteAction) {
-				yield {
-					...maybeIncompleteAction,
-					complete: true,
-					time: Date.now() - startTime,
-				}
-			}
+			reader.finish(finishReason)
 		} catch (error: any) {
 			console.error('streamActions error:', error)
 			throw error

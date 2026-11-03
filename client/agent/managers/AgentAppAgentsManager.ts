@@ -80,6 +80,7 @@ export class AgentAppAgentsManager extends BaseAgentAppManager {
 
 		const agent = new TldrawAgent({
 			editor: this.app.editor,
+			commands: this.app.commands,
 			id,
 			onError: this.app.options.onError,
 		})

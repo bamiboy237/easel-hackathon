@@ -1,6 +1,7 @@
 import { Editor, RecordsDiff, reverseRecordsDiff, structuredClone, TLRecord } from 'tldraw'
 import { convertTldrawShapeToFocusedShape } from '../../shared/format/convertTldrawShapeToFocusedShape'
 import { AgentModelName } from '../../shared/models'
+import { parseAgentAction } from '../../shared/schema/parseAgentAction'
 import { AgentAction } from '../../shared/types/AgentAction'
 import { AgentInput } from '../../shared/types/AgentInput'
 import { AgentPrompt, BaseAgentPrompt } from '../../shared/types/AgentPrompt'
@@ -25,6 +26,7 @@ import { AgentModeManager } from './managers/AgentModeManager'
 import { AgentRequestManager } from './managers/AgentRequestManager'
 import { AgentTodoManager } from './managers/AgentTodoManager'
 import { AgentUserActionTracker } from './managers/AgentUserActionTracker'
+import { BoardCommandManager } from './managers/BoardCommandManager'
 
 /**
  * The persisted state of an agent.
@@ -42,6 +44,7 @@ export interface PersistedAgentState {
 export interface TldrawAgentOptions {
 	/** The editor to associate the agent with. */
 	editor: Editor
+	commands: BoardCommandManager
 	/** A key used to differentiate the agent from other agents. */
 	id: string
 	/** A callback for when an error occurs. */
@@ -62,6 +65,8 @@ export interface TldrawAgentOptions {
 export class TldrawAgent {
 	/** The editor associated with this agent. */
 	editor: Editor
+
+	commands: BoardCommandManager
 
 	/** An id to differentiate the agent from other agents. */
 	id: string
@@ -125,8 +130,9 @@ export class TldrawAgent {
 	/**
 	 * Create a new tldraw agent.
 	 */
-	constructor({ editor, id, onError }: TldrawAgentOptions) {
+	constructor({ editor, commands, id, onError }: TldrawAgentOptions) {
 		this.editor = editor
+		this.commands = commands
 		this.id = id
 		this.onError = onError
 
@@ -596,11 +602,19 @@ export class TldrawAgent {
 				for await (const action of this.streamAgentActions({ prompt, signal })) {
 					if (cancelled) break
 
+					const validatedAction = action.complete
+						? {
+							...parseAgentAction(action, modeDefinition.type),
+							complete: true as const,
+							time: action.time,
+						}
+						: action
+
 					// Set acting flag BEFORE editor.run so user action tracker ignores all changes
 					// including diff reverts that happen before act() is called
 					this.setIsActingOnEditor(true)
 					try {
-						editor.run(
+						this.commands.withoutRecording(() => editor.run(
 							() => {
 								const actionUtilType = this.actions.getAgentActionUtilType(action._type)
 								const actionUtil = this.actions.getAgentActionUtil(action._type)
@@ -621,7 +635,7 @@ export class TldrawAgent {
 								}
 
 								// Sanitize the agent's action
-								const transformedAction = actionUtil.sanitizeAction(action, helpers)
+								const transformedAction = actionUtil.sanitizeAction(validatedAction, helpers)
 								if (!transformedAction) {
 									return
 								}
@@ -648,7 +662,7 @@ export class TldrawAgent {
 								ignoreShapeLock: true,
 								history: 'ignore',
 							}
-						)
+						))
 					} finally {
 						this.setIsActingOnEditor(false)
 					}
@@ -691,6 +705,10 @@ export class TldrawAgent {
 			},
 			signal,
 		})
+
+		if (!res.ok) {
+			throw new Error(`Agent request failed (${res.status}).`)
+		}
 
 		if (!res.body) {
 			throw Error('No body in response')

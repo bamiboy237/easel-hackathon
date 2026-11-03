@@ -1,6 +1,7 @@
 import { Editor } from 'tldraw'
 import { AgentAppAgentsManager } from './managers/AgentAppAgentsManager'
 import { AgentAppPersistenceManager } from './managers/AgentAppPersistenceManager'
+import { BoardCommandManager } from './managers/BoardCommandManager'
 
 /**
  * The TldrawAgentApp class manages the agent system for a given editor instance.
@@ -29,6 +30,8 @@ export class TldrawAgentApp {
 	 */
 	persistence: AgentAppPersistenceManager
 
+	commands: BoardCommandManager
+
 	/**
 	 * Handle crash and dispose events.
 	 */
@@ -55,6 +58,7 @@ export class TldrawAgentApp {
 		}
 	) {
 		this._editor = editor
+		this.commands = new BoardCommandManager(editor)
 		this.agents = new AgentAppAgentsManager(this)
 		this.persistence = new AgentAppPersistenceManager(this)
 		editor.on('crash', this.handleCrash)
@@ -70,6 +74,7 @@ export class TldrawAgentApp {
 		this._editor.off('dispose', this.handleDispose)
 		this.persistence.dispose()
 		this.agents.dispose()
+		this.commands.dispose()
 		this._editor = null
 	}
 

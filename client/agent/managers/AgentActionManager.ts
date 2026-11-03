@@ -1,4 +1,5 @@
 import { RecordsDiff, structuredClone, TLRecord } from 'tldraw'
+import { parseAgentAction } from '../../../shared/schema/parseAgentAction'
 import { AgentAction } from '../../../shared/types/AgentAction'
 import { ChatHistoryItem } from '../../../shared/types/ChatHistoryItem'
 import { Streaming } from '../../../shared/types/Streaming'
@@ -95,15 +96,25 @@ export class AgentActionManager extends BaseAgentManager {
 		promise: Promise<void> | null
 	} {
 		const { editor } = this.agent
+		if (action.complete) {
+			action = {
+				...parseAgentAction(action, this.agent.mode.getCurrentModeType()),
+				complete: true,
+				time: action.time,
+			}
+		}
 		const util = this.getAgentActionUtil(action._type)
 		this.agent.setIsActingOnEditor(true)
 
 		let promise: Promise<void> | null = null
 		let diff: RecordsDiff<TLRecord>
 		try {
-			diff = editor.store.extractingChanges(() => {
+			const apply = () => {
 				promise = util.applyAction(structuredClone(action), helpers) ?? null
-			})
+			}
+			diff = action.complete
+				? this.agent.commands.execute('agent', action._type, apply)
+				: this.agent.commands.withoutRecording(() => editor.store.extractingChanges(apply))
 		} catch (error) {
 			// always toast the error
 			this.agent.onError(error)

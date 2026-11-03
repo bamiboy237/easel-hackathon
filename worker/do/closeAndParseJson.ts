@@ -6,6 +6,7 @@
  */
 export function closeAndParseJson(string: string) {
 	const stackOfOpenings = []
+	let escaped = false
 
 	// Track openings and closings
 	let i = 0
@@ -13,25 +14,19 @@ export function closeAndParseJson(string: string) {
 		const char = string[i]
 		const lastOpening = stackOfOpenings.at(-1)
 
-		if (char === '"') {
-			// Check if this quote is escaped
-			if (i > 0 && string[i - 1] === '\\') {
-				// This is an escaped quote, skip it
-				i++
-				continue
-			}
-
-			if (lastOpening === '"') {
-				stackOfOpenings.pop()
-			} else {
-				stackOfOpenings.push('"')
-			}
-		}
-
 		if (lastOpening === '"') {
+			if (escaped) {
+				escaped = false
+			} else if (char === '\\') {
+				escaped = true
+			} else if (char === '"') {
+				stackOfOpenings.pop()
+			}
 			i++
 			continue
 		}
+
+		if (char === '"') stackOfOpenings.push('"')
 
 		if (char === '{' || char === '[') {
 			stackOfOpenings.push(char)
@@ -47,6 +42,8 @@ export function closeAndParseJson(string: string) {
 
 		i++
 	}
+
+	if (escaped) return null
 
 	// Now close all unclosed openings
 	for (let i = stackOfOpenings.length - 1; i >= 0; i--) {
