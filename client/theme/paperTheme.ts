@@ -20,19 +20,39 @@ export const CLAY = '#C2603E'
  */
 const INKS = {
 	black: INK,
-	grey: '#8C867A',
-	'light-violet': '#A57DB9',
+	grey: '#7A7468',
+	'light-violet': '#9466AD',
 	violet: '#6E4C93',
 	blue: '#2F5B9A',
-	'light-blue': '#4B86BF',
-	yellow: '#C2922B',
+	'light-blue': '#3A78B5',
+	yellow: '#B07F1A',
 	orange: CLAY,
 	green: '#2D7556',
-	'light-green': '#5E9452',
-	'light-red': '#D2786A',
+	'light-green': '#4C8740',
+	'light-red': '#C45E4E',
 	red: '#AE3B2C',
 	white: SHEET,
 } as const
+
+/**
+ * Fill tints and note colors, picked by hand. Blending a muted ink with paper turns
+ * it grey, so these are clean watercolor washes of each hue instead.
+ */
+const WASHES: Record<keyof typeof INKS, { tint: string; note: string }> = {
+	black: { tint: '#E6E1D6', note: '#F5E2A8' },
+	grey: { tint: '#ECE8DF', note: '#E4DFD4' },
+	'light-violet': { tint: '#EFE3F3', note: '#E7D4EF' },
+	violet: { tint: '#E7DDF0', note: '#DCCBEA' },
+	blue: { tint: '#DDE7F4', note: '#CEDCF0' },
+	'light-blue': { tint: '#E0EDF7', note: '#D1E5F4' },
+	yellow: { tint: '#F7E8C0', note: '#F5DC97' },
+	orange: { tint: '#F8DFD1', note: '#F5CDB6' },
+	green: { tint: '#DAEBE0', note: '#CAE3D1' },
+	'light-green': { tint: '#E4EFD8', note: '#D9E9C6' },
+	'light-red': { tint: '#F9E2DB', note: '#F6D2C7' },
+	red: { tint: '#F4DAD4', note: '#F0C6BD' },
+	white: { tint: SHEET, note: SHEET },
+}
 
 function mix(color: string, base: string, amountOfBase: number) {
 	const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
@@ -42,12 +62,12 @@ function mix(color: string, base: string, amountOfBase: number) {
 	return `#${mixed.map((value) => value.toString(16).padStart(2, '0')).join('')}`
 }
 
-function inkColor(ink: string): TLDefaultColor {
+function inkColor(ink: string, wash: { tint: string; note: string }): TLDefaultColor {
 	return {
 		solid: ink,
 		fill: ink,
 		linedFill: mix(ink, PAPER, 0.25),
-		semi: mix(ink, SHEET, 0.86),
+		semi: wash.tint,
 		pattern: mix(ink, PAPER, 0.35),
 		// Frames are quiet sheets: a hairline in the frame's tone over slightly lighter paper.
 		frameHeadingStroke: mix(ink, RULE, 0.7),
@@ -55,8 +75,8 @@ function inkColor(ink: string): TLDefaultColor {
 		frameStroke: mix(ink, RULE, 0.7),
 		frameFill: SHEET,
 		frameText: mix(INK, PAPER, 0.25),
-		// The default note color is black, so it gets the classic pale yellow instead of grey.
-		noteFill: ink === INK ? '#F3E3B0' : mix(ink, SHEET, 0.72),
+		// The default note color is black, so its wash is the classic pale yellow.
+		noteFill: wash.note,
 		noteText: INK,
 		highlightSrgb: mix(ink, '#F5D76E', 0.55),
 		highlightP3: mix(ink, '#F5D76E', 0.55),
@@ -79,7 +99,10 @@ const paperLight: TLThemeColors = {
 	selectedContrast: SHEET,
 	laser: CLAY,
 	...(Object.fromEntries(
-		Object.entries(INKS).map(([name, ink]) => [name, inkColor(ink)])
+		Object.entries(INKS).map(([name, ink]) => [
+			name,
+			inkColor(ink, WASHES[name as keyof typeof INKS]),
+		])
 	) as Record<keyof typeof INKS, TLDefaultColor>),
 }
 
