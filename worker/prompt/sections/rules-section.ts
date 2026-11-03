@@ -172,7 +172,7 @@ ${flagged(
 )}
 ${flagged(
 	flags.hasSelectedShapesPart,
-	"- If the user has selected shape(s) and they refer to 'this', or 'these' in their request, they are probably referring to their selected shapes."
+	"- If the user has selected shape(s), their request is probably about those shapes, even when it does not say 'this' or 'these'. Follow the canvas-work guidance for answering about a selection."
 )}
 
 ${flagged(

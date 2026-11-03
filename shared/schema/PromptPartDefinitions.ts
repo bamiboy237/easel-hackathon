@@ -67,6 +67,7 @@ export interface ScreenshotPart {
 export interface SelectedShapesPart {
 	type: 'selectedShapes'
 	shapeIds: SimpleShapeId[]
+	shapes?: FocusedShape[]
 }
 
 export interface TimePart {
@@ -438,16 +439,18 @@ export const ScreenshotPartDefinition: PromptPartDefinition<ScreenshotPart> = {
 export const SelectedShapesPartDefinition: PromptPartDefinition<SelectedShapesPart> = {
 	type: 'selectedShapes',
 	priority: -55,
-	buildContent({ shapeIds }: SelectedShapesPart) {
+	buildContent({ shapeIds, shapes }: SelectedShapesPart) {
 		if (!shapeIds || shapeIds.length === 0) {
 			return []
 		}
 
-		if (shapeIds.length === 1) {
-			return [`The user has this shape selected: ${shapeIds[0]}`]
-		}
+		const heading =
+			shapeIds.length === 1
+				? `The user has this shape selected: ${shapeIds[0]}`
+				: `The user has these shapes selected: ${shapeIds.join(', ')}`
+		if (!shapes || shapes.length === 0) return [heading]
 
-		return [`The user has these shapes selected: ${shapeIds.join(', ')}`]
+		return [`${heading}\n\nSelected shape details:\n${JSON.stringify(shapes)}`]
 	},
 }
 
