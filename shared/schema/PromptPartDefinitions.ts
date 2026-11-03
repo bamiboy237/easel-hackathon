@@ -166,8 +166,13 @@ export const CanvasLintsPartDefinition: PromptPartDefinition<CanvasLintsPart> = 
 
 		if (overlappingTextLints.length > 0) {
 			const lines = [
-				'Overlapping text: The shapes in each group have text and overlap each other, which may make text hard to read. If you decide to fix this, you may need to increase the size of any shapes containing the text.',
-				...overlappingTextLints.map((lint) => `  - ${lint.shapeIds.join(', ')}`),
+				'Colliding text: in each group below, text runs into other text or crosses the edge of a box, so a reader cannot read it. This is a real defect, so fix every group. Move or resize the shape you made, or shorten its text; leave the user\'s shapes where they are. Labels fully inside a box are fine and are not listed.',
+				...overlappingTextLints.map(
+					(lint) =>
+						`  - ${lint.shapeIds
+							.map((id, i) => (lint.texts?.[i] ? `${id} ("${lint.texts[i]}")` : id))
+							.join(' collides with ')}`
+				),
 			]
 			messages.push(lines.join('\n'))
 		}

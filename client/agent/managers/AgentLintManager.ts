@@ -160,6 +160,7 @@ export class AgentLintManager extends BaseAgentManager {
 			lints.push({
 				type: 'overlapping-text',
 				shapeIds: group.map((shape) => convertTldrawIdToSimpleId(shape.id)),
+				texts: group.map((shape) => this.getTextSnippet(shape)),
 			})
 		}
 
@@ -199,18 +200,21 @@ export class AgentLintManager extends BaseAgentManager {
 	}
 
 	/**
-	 * Get groups of shapes with overlapping text.
+	 * Get groups of text shapes that collide. Each group has at least one of the given shapes,
+	 * and may include older text on the page that the given shapes were drawn over.
 	 */
 	private getOverlappingTextGroups(shapes: TLShape[]): TLShape[][] {
 		const { editor } = this.agent
 		const groups: TLShape[][] = []
-		const shapesWithText = shapes.filter((shape) => {
-			// Exclude arrows from overlapping text detection
-			if (shape.type === 'arrow') return false
-			const util = editor.getShapeUtil(shape)
-			const text = util.getText(shape)
-			return text !== undefined && text.length > 0
-		})
+		const hasText = (shape: TLShape) => {
+			// Arrow labels and frame titles sit on their own shapes by design
+			if (shape.type === 'arrow' || shape.type === 'frame') return false
+			const text = editor.getShapeUtil(shape).getText(shape)
+			return text !== undefined && text.trim().length > 0
+		}
+		const checked = new Set(shapes.filter(hasText).map((shape) => shape.id))
+		if (checked.size === 0) return groups
+		const shapesWithText = editor.getCurrentPageShapes().filter(hasText)
 
 		if (shapesWithText.length < 2) {
 			return groups
@@ -243,7 +247,8 @@ export class AgentLintManager extends BaseAgentManager {
 			const shapeA = shapesWithText[i]
 			for (let j = i + 1; j < shapesWithText.length; j++) {
 				const shapeB = shapesWithText[j]
-				if (this.shapesOverlap(shapeA, shapeB)) {
+				if (!checked.has(shapeA.id) && !checked.has(shapeB.id)) continue
+				if (this.textCollides(shapeA, shapeB)) {
 					union(shapeA, shapeB)
 				}
 			}
@@ -288,6 +293,33 @@ export class AgentLintManager extends BaseAgentManager {
 	// ============================================================================
 	// Helper Functions
 	// ============================================================================
+
+	/**
+	 * Check if two text-bearing shapes collide. Text placed fully inside a box or note is a
+	 * label, not a collision. A sliver of overlap from text padding is ignored.
+	 */
+	private textCollides(shapeA: TLShape, shapeB: TLShape): boolean {
+		const { editor } = this.agent
+		const boundsA = editor.getShapePageBounds(shapeA)
+		const boundsB = editor.getShapePageBounds(shapeB)
+		if (!boundsA || !boundsB || !Box.Collides(boundsA, boundsB)) return false
+
+		const isContainer = (shape: TLShape) => shape.type === 'geo' || shape.type === 'note'
+		if (isContainer(shapeA) && !isContainer(shapeB) && boundsA.contains(boundsB)) return false
+		if (isContainer(shapeB) && !isContainer(shapeA) && boundsB.contains(boundsA)) return false
+
+		const overlapW = Math.min(boundsA.maxX, boundsB.maxX) - Math.max(boundsA.minX, boundsB.minX)
+		const overlapH = Math.min(boundsA.maxY, boundsB.maxY) - Math.max(boundsA.minY, boundsB.minY)
+		if (overlapW < 6 || overlapH < 6) return false
+
+		return this.shapesOverlap(shapeA, shapeB)
+	}
+
+	private getTextSnippet(shape: TLShape): string {
+		const text = this.agent.editor.getShapeUtil(shape).getText(shape) ?? ''
+		const oneLine = text.replace(/\s+/g, ' ').trim()
+		return oneLine.length > 40 ? `${oneLine.slice(0, 40)}...` : oneLine
+	}
 
 	/**
 	 * Check if two shapes overlap using geometry-based detection.
