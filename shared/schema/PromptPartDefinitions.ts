@@ -103,6 +103,12 @@ export interface UserViewportBoundsPart {
 	userBounds: BoxModel | null
 }
 
+export interface AsidePart {
+	type: 'aside'
+	/** The aside in progress, in model coordinates, or null when there is none. */
+	aside: { topic: string; region: BoxModel; from: BoxModel | null; hasPlan: boolean } | null
+}
+
 export interface ClearSpacePart {
 	type: 'clearSpace'
 	/** What the space is next to: the shapes the request is about, or the user's view. */
@@ -512,6 +518,20 @@ export const UserViewportBoundsPartDefinition: PromptPartDefinition<UserViewport
 		}
 		return [
 			`The bounds of the part of the canvas that the user can currently see are: ${JSON.stringify(userBounds)}`,
+		]
+	},
+}
+
+// Aside
+export const AsidePartDefinition: PromptPartDefinition<AsidePart> = {
+	type: 'aside',
+	priority: -74,
+	buildContent({ aside }: AsidePart) {
+		if (!aside) return []
+		const from = aside.from ? ` It stepped away from the main work at ${JSON.stringify(aside.from)}.` : ''
+		const plan = aside.hasPlan ? ' The unfinished plan is waiting and comes back when the aside ends.' : ''
+		return [
+			`You are on an aside about "${aside.topic}".${from} Work only inside this space: ${JSON.stringify(aside.region)}. Keep it short and rough, like working something out on scrap paper: the app draws it in a pencil style. Do not change the main work. When the aside is done, or the user wants to go back, use \`resume\`.${plan}`,
 		]
 	},
 }

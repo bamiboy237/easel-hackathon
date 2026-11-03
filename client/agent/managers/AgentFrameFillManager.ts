@@ -22,6 +22,11 @@ export class AgentFrameFillManager extends BaseAgentManager {
 		this.pending = []
 	}
 
+	/** Frames still waiting to be filled. */
+	getPending(): readonly MapFrame[] {
+		return this.pending
+	}
+
 	enqueue(frames: MapFrame[]) {
 		this.frames.push(...frames)
 		this.pending.push(...frames)

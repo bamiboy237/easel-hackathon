@@ -17,6 +17,7 @@ import { getModeNode } from '../modes/AgentModeChart'
 import { AgentModeType } from '../modes/AgentModeDefinitions'
 import { getPromptPartUtilsRecord, PromptPartUtil } from '../parts/PromptPartUtil'
 import { AgentActionManager } from './managers/AgentActionManager'
+import { AgentAsideManager } from './managers/AgentAsideManager'
 import { AgentChatManager } from './managers/AgentChatManager'
 import { AgentChatOriginManager } from './managers/AgentChatOriginManager'
 import { AgentContextManager } from './managers/AgentContextManager'
@@ -96,6 +97,9 @@ export class TldrawAgent {
 	/** The frame fill manager, which fills a map's frames one request at a time. */
 	frames: AgentFrameFillManager
 
+	/** Asides: short detours from the main work, with the plan kept for later. */
+	aside: AgentAsideManager
+
 	/** The lint manager associated with this agent. */
 	lints: AgentLintManager
 
@@ -150,6 +154,7 @@ export class TldrawAgent {
 		this.context = new AgentContextManager(this)
 		this.debug = new AgentDebugManager(this)
 		this.frames = new AgentFrameFillManager(this)
+		this.aside = new AgentAsideManager(this)
 		this.lints = new AgentLintManager(this)
 		this.modelName = new AgentModelNameManager(this)
 		this.requests = new AgentRequestManager(this)
@@ -218,6 +223,7 @@ export class TldrawAgent {
 
 		// Dispose all managers
 		this.actions.dispose()
+		this.aside.dispose()
 		this.chat.dispose()
 		this.chatOrigin.dispose()
 		this.context.dispose()
@@ -264,6 +270,17 @@ export class TldrawAgent {
 	/** Stop after this action and wait for the user to answer the agent's question. */
 	waitForAnswer() {
 		this.waitingForAnswer = true
+	}
+
+	/**
+	 * True when the rest of the current response should be dropped, for example
+	 * after the agent starts an aside: the next pass works with the aside's space.
+	 */
+	private endResponse = false
+
+	/** Drop the rest of the current response after this action. */
+	endResponseEarly() {
+		this.endResponse = true
 	}
 
 	/** Whether the agent asked a question and is waiting for the user's answer. */
@@ -612,6 +629,7 @@ export class TldrawAgent {
 
 		// Reset all managers
 		this.actions.reset()
+		this.aside.reset()
 		this.chat.reset()
 		this.chatOrigin.reset()
 		this.context.reset()
@@ -652,6 +670,7 @@ export class TldrawAgent {
 				: requestedShapeIds
 		this.actions.onRequestStart(request.source)
 		this.waitingForAnswer = false
+		this.endResponse = false
 		this.passId = crypto.randomUUID()
 		if (request.source !== 'self' || !this.requestId) this.requestId = crypto.randomUUID()
 
@@ -681,7 +700,7 @@ export class TldrawAgent {
 			try {
 				for await (const action of this.streamAgentActions({ prompt, signal })) {
 					// After a question, the rest of the response waits for the answer.
-					if (cancelled || this.waitingForAnswer) break
+					if (cancelled || this.waitingForAnswer || this.endResponse) break
 
 					const validatedAction = action.complete
 						? {
@@ -749,7 +768,7 @@ export class TldrawAgent {
 					}
 				}
 				// The rest of a response after a question is not needed.
-				if (this.waitingForAnswer) controller.abort('Waiting for the answer')
+				if (this.waitingForAnswer || this.endResponse) controller.abort('Response ended early')
 				await Promise.all(actionPromises)
 			} catch (e) {
 				if (e === 'Cancelled by user' || (e instanceof Error && e.name === 'AbortError')) {

@@ -18,7 +18,10 @@ export const ClearSpacePartUtil = registerPromptPartUtil(
 
 		override getPart(request: AgentRequest, helpers: AgentHelpers): ClearSpacePart {
 			const { editor } = this
-			if (request.source === 'self') return { type: 'clearSpace', near: 'view', space: null }
+			// Follow-up passes know where they work, and an aside has its own space.
+			if (request.source === 'self' || this.agent.aside.getActive()) {
+				return { type: 'clearSpace', near: 'view', space: null }
+			}
 
 			const subjectIds = new Set<TLShapeId>(editor.getSelectedShapeIds())
 			const areas: Box[] = []

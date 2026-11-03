@@ -13,6 +13,8 @@ import { DistributeActionUtil } from '../actions/DistributeActionUtil'
 import { LabelActionUtil } from '../actions/LabelActionUtil'
 import { MapActionUtil } from '../actions/MapActionUtil'
 import { AskActionUtil } from '../actions/AskActionUtil'
+import { AsideActionUtil } from '../actions/AsideActionUtil'
+import { ResumeActionUtil } from '../actions/ResumeActionUtil'
 import { MessageActionUtil } from '../actions/MessageActionUtil'
 import { MoveActionUtil } from '../actions/MoveActionUtil'
 import { PenActionUtil } from '../actions/PenActionUtil'
@@ -46,6 +48,7 @@ import { TodoListPartUtil } from '../parts/TodoListPartUtil'
 import { UserActionHistoryPartUtil } from '../parts/UserActionHistoryPartUtil'
 import { UserViewportBoundsPartUtil } from '../parts/UserViewportBoundsPartUtil'
 import { ClearSpacePartUtil } from '../parts/ClearSpacePartUtil'
+import { AsidePartUtil } from '../parts/AsidePartUtil'
 
 /**
  * What an agent can see and do when in a given mode.
@@ -112,6 +115,7 @@ export const AGENT_MODE_DEFINITIONS = [
 			ScreenshotPartUtil.type,
 			UserViewportBoundsPartUtil.type,
 			ClearSpacePartUtil.type,
+			AsidePartUtil.type,
 			AgentViewportBoundsPartUtil.type,
 
 			// Shapes
@@ -138,6 +142,8 @@ export const AGENT_MODE_DEFINITIONS = [
 			// Communication
 			MessageActionUtil.type,
 			AskActionUtil.type,
+			AsideActionUtil.type,
+			ResumeActionUtil.type,
 
 			// Planning
 			ThinkActionUtil.type,

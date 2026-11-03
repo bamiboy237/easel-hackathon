@@ -184,6 +184,34 @@ export const MessageAction = z
 
 export type MessageAction = z.infer<typeof MessageAction>
 
+// Aside Action
+export const AsideAction = z
+	.object({
+		_type: z.literal('aside'),
+		topic: z.string(),
+	})
+	.meta({
+		title: 'Aside',
+		description:
+			'The AI starts a short aside on a side topic, such as a refresher the user asks for while working through the main material. The app keeps any unfinished plan, gives the aside its own space beside the main work, and draws it in a pencil style. Make it the only action of the response: the next request gives you the aside space.',
+	})
+
+export type AsideAction = z.infer<typeof AsideAction>
+
+// Resume Action
+export const ResumeAction = z
+	.object({
+		_type: z.literal('resume'),
+		summary: z.string(),
+	})
+	.meta({
+		title: 'Resume',
+		description:
+			'The AI ends the current aside and returns to the main work. Use it when the aside is done or the user wants to go back. Summary: one sentence on what the aside settled, to carry back into the main work.',
+	})
+
+export type ResumeAction = z.infer<typeof ResumeAction>
+
 // Ask Action
 export const AskAction = z
 	.object({

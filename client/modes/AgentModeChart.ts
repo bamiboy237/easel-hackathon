@@ -31,6 +31,7 @@ const _AGENT_MODE_CHART: Record<AgentModeDefinition['type'], AgentModeNode> = {
 			agent.mode.setMode('working')
 		},
 		onEnter(agent, _fromMode) {
+			agent.aside.capturePlan()
 			agent.todos.reset()
 			agent.frames.reset()
 			agent.userAction.clearHistory()
@@ -60,6 +61,8 @@ const _AGENT_MODE_CHART: Record<AgentModeDefinition['type'], AgentModeNode> = {
 			// Clear created shapes tracking and flush todos when a new user prompt starts
 			// This handles cases where a prompt starts while already in working mode (e.g., continuation, interrupt)
 			if (request.source === 'user') {
+				// Keep the plan this request cuts short, so an aside can return to it.
+				agent.aside.capturePlan()
 				agent.todos.flush()
 				agent.lints.clearCreatedShapes()
 				agent.frames.reset()
@@ -81,6 +84,9 @@ const _AGENT_MODE_CHART: Record<AgentModeDefinition['type'], AgentModeNode> = {
 
 			// Fill the next frame of a map, one request per frame
 			if (agent.frames.scheduleNext()) return
+
+			// The plan is finished. On an aside, the plan waits instead.
+			if (!agent.aside.getActive()) agent.aside.clearPlan()
 
 			// Check if there are unsurfaced lints on created shapes
 			if (agent.lints.hasUnsurfacedLints(agent.lints.getCreatedShapes())) {
