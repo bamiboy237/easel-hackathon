@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { reverseRecordsDiff, squashRecordDiffs } from 'tldraw'
+import { squashRecordDiffs } from 'tldraw'
 import { AgentIcon, AgentIconType } from '../../../shared/icons/AgentIcon'
 import { ChatHistoryActionItem } from '../../../shared/types/ChatHistoryItem'
 import { useAgent } from '../../agent/TldrawAgentAppProvider'
@@ -10,51 +10,51 @@ import { TldrawDiffViewer } from './TldrawDiffViewer'
 export function ChatHistoryGroupWithDiff({ group }: { group: ChatHistoryGroup }) {
 	const agent = useAgent()
 	const { items } = group
-	const { editor } = agent
 	const diff = useMemo(() => squashRecordDiffs(items.map((item) => item.diff)), [items])
 
-	// Accept all changes from this group
-	const handleAccept = useCallback(() => {
-		agent.chat.update((currentChatHistoryItems) => {
-			const newItems = [...currentChatHistoryItems]
-			for (const item of items) {
-				const index = newItems.findIndex((v) => v === item)
+	// Undo and Restore go through the command log, so they keep newer human work.
+	const markItems = useCallback(
+		(change: (item: ChatHistoryActionItem) => ChatHistoryActionItem) => {
+			agent.chat.update((currentChatHistoryItems) =>
+				currentChatHistoryItems.map((historyItem) =>
+					historyItem.type === 'action' && items.includes(historyItem) ? change(historyItem) : historyItem
+				)
+			)
+		},
+		[items, agent.chat]
+	)
 
-				// Mark the item as accepted
-				if (index !== -1) {
-					newItems[index] = { ...item, acceptance: 'accepted' }
-				}
-
-				// Apply the diff if needed
-				if (item.acceptance === 'rejected') {
-					editor.store.applyDiff(item.diff)
-				}
-			}
-			return newItems
-		})
-	}, [items, editor, agent.chat])
-
-	// Reject all changes from this group
+	// Revert every pass in this group.
 	const handleReject = useCallback(() => {
-		agent.chat.update((currentChatHistoryItems) => {
-			const newItems = [...currentChatHistoryItems]
-			for (const item of items) {
-				const index = newItems.findIndex((v) => v === item)
+		const passIds = [...new Set(items.map((item) => item.passId).filter((id) => id !== undefined))]
+		const commandIds = passIds.flatMap((passId) => agent.commands.getAgentCommandIds({ passId }))
+		const { commandId, kept } = agent.commands.revert(commandIds)
+		if (!commandId) return
+		markItems((item) => ({
+			...item,
+			acceptance: 'rejected',
+			revertCommandId: commandId,
+			keptRecordIds: kept.map((record) => record.id),
+		}))
+	}, [items, agent.commands, markItems])
 
-				// Mark the item as rejected
-				if (index !== -1) {
-					newItems[index] = { ...item, acceptance: 'rejected' }
-				}
+	// Restore what the last revert undid.
+	const handleAccept = useCallback(() => {
+		const revertCommandId = items.find((item) => item.revertCommandId)?.revertCommandId
+		if (!revertCommandId) return
+		const { kept } = agent.commands.revert([revertCommandId], 'restore')
+		markItems((item) => ({
+			...item,
+			acceptance: 'accepted',
+			revertCommandId: undefined,
+			keptRecordIds: kept.map((record) => record.id),
+		}))
+	}, [items, agent.commands, markItems])
 
-				// Reverse the diff if needed
-				if (item.acceptance !== 'rejected') {
-					const reverseDiff = reverseRecordsDiff(item.diff)
-					editor.store.applyDiff(reverseDiff)
-				}
-			}
-			return newItems
-		})
-	}, [items, editor, agent.chat])
+	const keptCount = useMemo(
+		() => new Set(items.flatMap((item) => item.keptRecordIds ?? [])).size,
+		[items]
+	)
 
 	// Get the acceptance status of the group
 	// If all items are accepted, the group is accepted
@@ -104,6 +104,13 @@ export function ChatHistoryGroupWithDiff({ group }: { group: ChatHistoryGroup })
 					)}
 				</div>
 			</div>
+			{keptCount > 0 && (
+				<div className="chat-history-change-kept">
+					{acceptance === 'rejected'
+						? `Kept ${keptCount === 1 ? 'one shape' : `${keptCount} shapes`} you changed after the agent.`
+						: `Left ${keptCount === 1 ? 'one shape' : `${keptCount} shapes`} as you changed them.`}
+				</div>
+			)}
 			{isOpen && (
 				<>
 					<DiffSteps steps={steps} />

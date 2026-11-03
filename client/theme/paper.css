@@ -214,6 +214,12 @@
 	color: var(--tl-color-text-3);
 }
 
+.chat-panel.tl-theme__light .chat-history-change-kept {
+	padding: 0 8px 6px 24px;
+	font-size: 11px;
+	color: var(--tl-color-text-3);
+}
+
 .chat-panel.tl-theme__light .chat-history-change-acceptance {
 	width: auto;
 	flex-shrink: 0;

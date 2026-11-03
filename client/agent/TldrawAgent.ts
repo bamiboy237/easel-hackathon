@@ -258,6 +258,23 @@ export class TldrawAgent {
 		return this.allowedShapeIds
 	}
 
+	/** The current pass, one per model request, and the user request it belongs to. */
+	private passId: string | undefined
+	private requestId: string | undefined
+
+	/** Get the IDs that tag this pass's commands in the command log. */
+	getPassIds(): { passId?: string; requestId?: string } {
+		return { passId: this.passId, requestId: this.requestId }
+	}
+
+	/**
+	 * Revert one finished agent pass, or every pass of a request, and keep newer
+	 * human work. This does not stop the agent: cancel does that.
+	 */
+	revert(scope: { passId?: string; requestId?: string }) {
+		return this.commands.revert(this.commands.getAgentCommandIds(scope))
+	}
+
 	/**
 	 * Get whether the agent is currently acting on the editor.
 	 * @returns true if the agent is currently acting, false otherwise.
@@ -612,6 +629,8 @@ export class TldrawAgent {
 				? new Set([...this.allowedShapeIds, ...requestedShapeIds])
 				: requestedShapeIds
 		this.actions.onRequestStart(request.source)
+		this.passId = crypto.randomUUID()
+		if (request.source !== 'self' || !this.requestId) this.requestId = crypto.randomUUID()
 
 		let cancelled = false
 		const controller = new AbortController()
@@ -712,6 +731,25 @@ export class TldrawAgent {
 				}
 				this.onError(e)
 				throw e
+			} finally {
+				// A half-streamed action is a preview, never a command, so a cancelled
+				// or broken stream takes it back off the board.
+				if (incompleteDiff) {
+					const preview = reverseRecordsDiff(incompleteDiff)
+					this.setIsActingOnEditor(true)
+					try {
+						this.commands.withoutRecording(() =>
+							editor.run(() => editor.store.applyDiff(preview), {
+								ignoreShapeLock: true,
+								history: 'ignore',
+							})
+						)
+					} finally {
+						this.setIsActingOnEditor(false)
+					}
+					this.lints.trackShapesFromDiff(preview)
+					incompleteDiff = null
+				}
 			}
 		})()
 

@@ -5,6 +5,7 @@ import {
 	RecordsDiff,
 	reverseRecordsDiff,
 	squashRecordDiffs,
+	TLBinding,
 	TLRecord,
 	TLShape,
 	TLShapeId,
@@ -28,10 +29,31 @@ export interface ExecuteOptions {
 	 * added as context, or named in the request. Shapes inside them count too.
 	 */
 	allowedShapeIds?: ReadonlySet<string>
+	/** The agent pass the command came from, one per model request. */
+	passId?: string
+	/** The user request the pass belongs to, shared by its follow-up passes. */
+	requestId?: string
+}
+
+/** A record a revert left as it is, and why. */
+export interface KeptRecord {
+	id: string
+	/**
+	 * - `edited`: a later human command changed it.
+	 * - `connected`: the user bound their own shape to it.
+	 * - `deleted`: a later command deleted it, so there is nothing to restore.
+	 */
+	reason: 'edited' | 'connected' | 'deleted'
+}
+
+export interface RevertResult {
+	/** The command the revert recorded, or null when there was nothing to change. */
+	commandId: string | null
+	kept: KeptRecord[]
 }
 
 export type BoardCommandResult =
-	| { status: 'applied'; changes: RecordsDiff<TLRecord> }
+	| { status: 'applied'; commandId: string | null; changes: RecordsDiff<TLRecord> }
 	| {
 			status: 'rejected'
 			reason: 'stale'
@@ -58,6 +80,38 @@ type ShapeLookup = (id: string) => TLShape | undefined
 // Shapes that only touch at an edge do not overlap.
 const OVERLAP_TOLERANCE = 2
 
+function sameValue(a: unknown, b: unknown): boolean {
+	return a === b || JSON.stringify(a) === JSON.stringify(b)
+}
+
+/**
+ * Three-way merge for one record: take each property back to `before` when the
+ * reverted change set it and nothing changed it since. Properties changed
+ * since keep their current value. Returns the merged record and whether any
+ * property kept a newer value.
+ */
+function mergeBack<R extends TLRecord>(before: R, after: R, current: R): { record: R; keptNewer: boolean } {
+	let keptNewer = false
+	const mergeLevel = (b: any, a: any, c: any): any => {
+		const result = { ...c }
+		const keys = new Set([...Object.keys(b ?? {}), ...Object.keys(a ?? {})])
+		for (const key of keys) {
+			if (key === 'id' || key === 'typeName') continue
+			if (sameValue(b?.[key], a?.[key])) continue
+			if (sameValue(c?.[key], a?.[key])) {
+				if (b && key in b) result[key] = b[key]
+				else delete result[key]
+			} else if ((key === 'props' || key === 'meta') && c?.[key] && typeof c[key] === 'object') {
+				result[key] = mergeLevel(b?.[key], a?.[key], c[key])
+			} else {
+				keptNewer = true
+			}
+		}
+		return result
+	}
+	return { record: mergeLevel(before, after, current) as R, keptNewer }
+}
+
 function overlaps(a: Box, b: Box): boolean {
 	const w = Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX)
 	const h = Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY)
@@ -73,6 +127,8 @@ export class BoardCommandManager {
 	private recordingDepth = 0
 	/** The origin of the command being executed, used to stamp the shapes it creates. */
 	private executingOrigin: CommandOrigin | null = null
+	/** Off while a revert restores records, so restored shapes keep their original creator. */
+	private stampsCreator = true
 	private cleanups: (() => void)[] = []
 
 	constructor(private editor: Editor) {
@@ -82,7 +138,7 @@ export class BoardCommandManager {
 		// so undo and redo do not change who owns a shape.
 		this.cleanups.push(
 			store.sideEffects.registerBeforeCreateHandler('shape', (shape, source) => {
-				if (source !== 'user' || getShapeCreator(shape)) return shape
+				if (source !== 'user' || !this.stampsCreator || getShapeCreator(shape)) return shape
 				const createdBy: ShapeCreator =
 					this.recordingDepth > 0 ? (this.executingOrigin ?? 'agent') : 'user'
 				return { ...shape, meta: { ...shape.meta, createdBy } }
@@ -135,7 +191,7 @@ export class BoardCommandManager {
 		origin: CommandOrigin,
 		type: string,
 		apply: () => void,
-		{ baseRev, allowedShapeIds = new Set() }: ExecuteOptions = {}
+		{ baseRev, allowedShapeIds = new Set(), passId, requestId }: ExecuteOptions = {}
 	): BoardCommandResult {
 		CommandOriginSchema.parse(origin)
 		if (!type) throw new Error('A board command must have a type.')
@@ -160,7 +216,7 @@ export class BoardCommandManager {
 		const staleRecordIds = baseRev === undefined ? [] : this.getStaleRecordIds(changes, baseRev)
 		if (staleRecordIds.length > 0) {
 			rollBack()
-			this.record(origin, type, changes, { baseRev, reason: 'stale', staleRecordIds })
+			this.record(origin, type, changes, { baseRev, passId, requestId, reason: 'stale', staleRecordIds })
 			return { status: 'rejected', reason: 'stale', changes: emptyChanges(), staleRecordIds }
 		}
 
@@ -169,12 +225,180 @@ export class BoardCommandManager {
 			: []
 		if (protectedRecordIds.length > 0) {
 			rollBack()
-			this.record(origin, type, changes, { baseRev, reason: 'protected', protectedRecordIds })
+			this.record(origin, type, changes, {
+				baseRev,
+				passId,
+				requestId,
+				reason: 'protected',
+				protectedRecordIds,
+			})
 			return { status: 'rejected', reason: 'protected', changes: emptyChanges(), protectedRecordIds }
 		}
 
-		this.record(origin, type, changes, { baseRev })
-		return { status: 'applied', changes }
+		const commandId = this.record(origin, type, changes, { baseRev, passId, requestId })
+		return { status: 'applied', commandId, changes }
+	}
+
+	/** The applied agent commands from one pass, or from every pass of one request. */
+	getAgentCommandIds({ passId, requestId }: { passId?: string; requestId?: string }): string[] {
+		return this.getHistory()
+			.filter(
+				(command) =>
+					command.status === 'applied' &&
+					command.origin === 'agent' &&
+					((passId !== undefined && command.passId === passId) ||
+						(requestId !== undefined && command.requestId === requestId))
+			)
+			.map((command) => command.commandId)
+	}
+
+	/**
+	 * Undo applied commands, and keep newer human work. Runs as one user command
+	 * of the given type, built from the command log. For each record the commands
+	 * touched:
+	 * - Nothing changed it since: it goes back to its earlier version.
+	 * - A later command changed some of its properties: only the properties
+	 *   nobody changed since go back.
+	 * - A shape the commands created that the user has since edited, or bound
+	 *   their own shape to, stays.
+	 * Shapes that move into a deleted container keep their place on the page.
+	 * Reverting a revert restores the work it undid, the same way.
+	 */
+	revert(commandIds: readonly string[], type: 'revert' | 'restore' = 'revert'): RevertResult {
+		const { editor } = this
+		const ids = new Set(commandIds)
+		const history = this.getHistory()
+		const reverted = history.filter((c) => ids.has(c.commandId) && c.status === 'applied')
+		if (reverted.length === 0) return { commandId: null, kept: [] }
+
+		const touches = (command: BoardCommand, id: string) =>
+			id in command.payload.added || id in command.payload.updated || id in command.payload.removed
+		const lastRev = new Map<string, number>()
+		for (const command of reverted) {
+			for (const id of [command.payload.added, command.payload.updated, command.payload.removed].flatMap(Object.keys)) {
+				lastRev.set(id, Math.max(lastRev.get(id) ?? 0, command.rev ?? 0))
+			}
+		}
+		const firstRev = Math.min(...reverted.map((c) => c.rev ?? 0))
+		const later = history.filter((c) => c.status === 'applied' && !ids.has(c.commandId))
+		// Other reverts and restores are not edits, so reverting passes in any order
+		// gives the same result.
+		const isHumanEdit = (c: BoardCommand) => c.origin !== 'agent' && c.type !== 'revert' && c.type !== 'restore'
+		const humanChangedSince = (id: string, rev: number) =>
+			later.some((c) => isHumanEdit(c) && (c.rev ?? 0) > rev && touches(c, id))
+
+		const diff = squashRecordDiffs(reverted.map((c) => c.payload as RecordsDiff<TLRecord>))
+		const kept: KeptRecord[] = []
+		const toDelete: TLShapeId[] = []
+		const toRemove: TLRecord['id'][] = []
+		const toPut: TLRecord[] = []
+		const restoreShapes: TLShape[] = []
+		const restoreOthers: TLRecord[] = []
+
+		for (const record of Object.values(diff.added)) {
+			const current = editor.store.get(record.id)
+			if (!current) continue
+			if (humanChangedSince(record.id, lastRev.get(record.id) ?? firstRev)) {
+				kept.push({ id: record.id, reason: 'edited' })
+				continue
+			}
+			if (current.typeName === 'shape') {
+				const connected = editor
+					.getBindingsInvolvingShape(current.id)
+					.some((binding: TLBinding) => !(binding.id in diff.added) && humanChangedSince(binding.id, firstRev))
+				if (connected) {
+					kept.push({ id: record.id, reason: 'connected' })
+					continue
+				}
+				toDelete.push(current.id)
+			} else {
+				toRemove.push(current.id)
+			}
+		}
+
+		for (const [before, after] of Object.values(diff.updated)) {
+			const current = editor.store.get(after.id)
+			if (!current) {
+				kept.push({ id: after.id, reason: 'deleted' })
+				continue
+			}
+			const { record, keptNewer } = mergeBack(before, after, current)
+			if (keptNewer && humanChangedSince(after.id, lastRev.get(after.id) ?? firstRev)) {
+				kept.push({ id: after.id, reason: 'edited' })
+			}
+			if (!sameValue(record, current)) toPut.push(record)
+		}
+
+		for (const record of Object.values(diff.removed)) {
+			if (editor.store.has(record.id)) continue
+			if (record.typeName === 'shape') restoreShapes.push(record)
+			else restoreOthers.push(record)
+		}
+
+		const apply = () => {
+			editor.run(
+				() => {
+					// Restore deleted shapes first, so updates and bindings can refer to them.
+					if (restoreShapes.length > 0) {
+						const restoring = new Set<string>(restoreShapes.map((shape) => shape.id))
+						const pageId = editor.getCurrentPageId()
+						editor.store.put(
+							restoreShapes.map((shape) =>
+								restoring.has(shape.parentId) || editor.store.has(shape.parentId)
+									? shape
+									: { ...shape, parentId: pageId }
+							)
+						)
+					}
+					if (toPut.length > 0) editor.store.put(toPut)
+					if (toDelete.length > 0) {
+						// Keep shapes that are not being reverted, such as the user's own note
+						// inside an agent frame, where they are on the page.
+						const deleting = new Set<string>(toDelete)
+						for (const id of toDelete) {
+							const survivors = editor.getSortedChildIdsForParent(id).filter((child) => !deleting.has(child))
+							if (survivors.length === 0) continue
+							let target = editor.getShape(id)?.parentId
+							while (target && deleting.has(target)) target = editor.getShape(target as TLShapeId)?.parentId
+							editor.reparentShapes(survivors, target ?? editor.getCurrentPageId())
+						}
+						editor.deleteShapes(toDelete)
+					}
+					const leftover = toRemove.filter((id) => editor.store.has(id))
+					if (leftover.length > 0) editor.store.remove(leftover)
+					const others = restoreOthers.filter((record) => {
+						if (record.typeName !== 'binding') return true
+						const binding = record as TLBinding
+						return editor.store.has(binding.fromId) && editor.store.has(binding.toId)
+					})
+					if (others.length > 0) editor.store.put(others)
+				},
+				{ ignoreShapeLock: true, history: 'ignore' }
+			)
+		}
+
+		this.stampsCreator = false
+		let result: BoardCommandResult
+		try {
+			result = this.execute('user', type, apply, {})
+		} finally {
+			this.stampsCreator = true
+		}
+		const commandId = result.status === 'applied' ? result.commandId : null
+		if (commandId) {
+			this.history.update((all) =>
+				all.map((command) =>
+					command.commandId === commandId
+						? BoardCommandSchema.parse({
+								...command,
+								revertedCommandIds: reverted.map((c) => c.commandId),
+								keptRecordIds: kept.map((k) => k.id),
+							})
+						: command
+				)
+			)
+		}
+		return { commandId, kept }
 	}
 
 	/**
@@ -342,11 +566,15 @@ export class BoardCommandManager {
 		changes: RecordsDiff<TLRecord>,
 		{
 			baseRev,
+			passId,
+			requestId,
 			reason,
 			staleRecordIds,
 			protectedRecordIds,
 		}: {
 			baseRev?: number
+			passId?: string
+			requestId?: string
 			reason?: 'stale' | 'protected'
 			staleRecordIds?: string[]
 			protectedRecordIds?: string[]
@@ -367,7 +595,7 @@ export class BoardCommandManager {
 			),
 		}
 		const ids = [payload.added, payload.updated, payload.removed].flatMap(Object.keys)
-		if (ids.length === 0) return
+		if (ids.length === 0) return null
 		const command = BoardCommandSchema.parse({
 			commandId: crypto.randomUUID(),
 			origin,
@@ -375,6 +603,8 @@ export class BoardCommandManager {
 			status: rejected ? 'rejected' : 'applied',
 			rev: rejected ? null : this.rev + 1,
 			baseRev,
+			passId,
+			requestId,
 			reason,
 			staleRecordIds,
 			protectedRecordIds,
@@ -394,5 +624,6 @@ export class BoardCommandManager {
 			}
 		}
 		this.history.update((history) => [...history, command])
+		return command.commandId
 	}
 }

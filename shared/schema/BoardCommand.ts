@@ -26,6 +26,14 @@ export const BoardCommandSchema = z.object({
 	rev: RevisionSchema.nullable(),
 	/** The board revision an agent command was based on. */
 	baseRev: RevisionSchema.optional(),
+	/** The agent pass the command came from. */
+	passId: z.string().optional(),
+	/** The user request the pass belongs to. */
+	requestId: z.string().optional(),
+	/** For a revert or restore, the commands it undid. */
+	revertedCommandIds: z.array(z.string()).optional(),
+	/** For a revert or restore, the records it left as they were, to keep newer human work. */
+	keptRecordIds: z.array(z.string()).optional(),
 	/** Why a rejected command was rejected. */
 	reason: z.enum(['stale', 'protected']).optional(),
 	/** For a stale command, the records that a user or voice command changed after `baseRev`. */

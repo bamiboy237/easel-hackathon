@@ -137,6 +137,7 @@ export class AgentActionManager extends BaseAgentManager {
 		let promise: Promise<void> | null = null
 		let diff: RecordsDiff<TLRecord>
 		let rejected = false
+		let commandId: string | null = null
 		try {
 			const apply = () => {
 				promise = util.applyAction(structuredClone(action), helpers) ?? null
@@ -145,8 +146,10 @@ export class AgentActionManager extends BaseAgentManager {
 				const result = this.agent.commands.execute('agent', action._type, apply, {
 					baseRev,
 					allowedShapeIds: this.agent.getAllowedShapeIds(),
+					...this.agent.getPassIds(),
 				})
 				diff = result.changes
+				if (result.status === 'applied') commandId = result.commandId
 				if (result.status === 'rejected') {
 					rejected = true
 					this.reportRejectedCommand(action._type, result)
@@ -170,6 +173,8 @@ export class AgentActionManager extends BaseAgentManager {
 				action,
 				diff,
 				acceptance: 'pending',
+				passId: this.agent.getPassIds().passId,
+				commandId,
 			}
 
 			this.agent.chat.update((historyItems) => {

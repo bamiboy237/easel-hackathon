@@ -30,6 +30,14 @@ export interface ChatHistoryActionItem {
 	action: Streaming<AgentAction>
 	diff: RecordsDiff<TLRecord>
 	acceptance: 'pending' | 'accepted' | 'rejected'
+	/** The agent pass the action came from. */
+	passId?: string
+	/** The command the action recorded, or null when it changed nothing. */
+	commandId?: string | null
+	/** The revert command that undid this action's pass, while it is undone. */
+	revertCommandId?: string
+	/** Records the last revert or restore left as they were, to keep newer human work. */
+	keptRecordIds?: string[]
 }
 
 /**
