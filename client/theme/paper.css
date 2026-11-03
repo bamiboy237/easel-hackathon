@@ -158,6 +158,53 @@
 	line-height: 1.6;
 }
 
+/* The agent's question reads like its messages, with quiet choices under it. */
+.chat-panel.tl-theme__light .agent-ask {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 4px 0;
+}
+
+.chat-panel.tl-theme__light .agent-ask-question {
+	color: var(--paper-ink);
+	font-family: 'Source Serif 4 Variable', Georgia, serif;
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.chat-panel.tl-theme__light .agent-ask-question p {
+	margin: 0;
+}
+
+.chat-panel.tl-theme__light .agent-ask-choices {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.chat-panel.tl-theme__light .agent-ask-choices button {
+	margin: 0;
+	padding: 5px 10px;
+	font-family: inherit;
+	line-height: 1.3;
+	border: 1px solid var(--paper-rule);
+	border-radius: 8px;
+	background-color: var(--paper-card);
+	color: var(--paper-ink);
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.chat-panel.tl-theme__light .agent-ask-choices button:hover:not(:disabled) {
+	background-color: var(--paper-hover);
+}
+
+.chat-panel.tl-theme__light .agent-ask-choices button:disabled {
+	color: var(--tl-color-text-3);
+	cursor: default;
+}
+
 /* Each agent pass is one quiet row that opens to show its steps and a preview. */
 .chat-panel.tl-theme__light .chat-history-change {
 	border: 1px solid var(--paper-rule);

@@ -258,6 +258,19 @@ export class TldrawAgent {
 		return this.allowedShapeIds
 	}
 
+	/** True after the agent asked the user a question, until the next request starts. */
+	private waitingForAnswer = false
+
+	/** Stop after this action and wait for the user to answer the agent's question. */
+	waitForAnswer() {
+		this.waitingForAnswer = true
+	}
+
+	/** Whether the agent asked a question and is waiting for the user's answer. */
+	isWaitingForAnswer(): boolean {
+		return this.waitingForAnswer
+	}
+
 	/** The current pass, one per model request, and the user request it belongs to. */
 	private passId: string | undefined
 	private requestId: string | undefined
@@ -370,6 +383,15 @@ export class TldrawAgent {
 			await this.request(request)
 		} catch (e) {
 			console.error('Error data:', e)
+			this.requests.setIsPrompting(false)
+			this.requests.setCancelFn(null)
+			return
+		}
+
+		// The agent asked a question: nothing else runs until the user answers.
+		if (this.waitingForAnswer) {
+			this.requests.clearScheduledRequest()
+			this.mode.setMode('idling')
 			this.requests.setIsPrompting(false)
 			this.requests.setCancelFn(null)
 			return
@@ -629,6 +651,7 @@ export class TldrawAgent {
 				? new Set([...this.allowedShapeIds, ...requestedShapeIds])
 				: requestedShapeIds
 		this.actions.onRequestStart(request.source)
+		this.waitingForAnswer = false
 		this.passId = crypto.randomUUID()
 		if (request.source !== 'self' || !this.requestId) this.requestId = crypto.randomUUID()
 
@@ -657,7 +680,8 @@ export class TldrawAgent {
 			const actionPromises: Promise<void>[] = []
 			try {
 				for await (const action of this.streamAgentActions({ prompt, signal })) {
-					if (cancelled) break
+					// After a question, the rest of the response waits for the answer.
+					if (cancelled || this.waitingForAnswer) break
 
 					const validatedAction = action.complete
 						? {
@@ -724,6 +748,8 @@ export class TldrawAgent {
 						this.setIsActingOnEditor(false)
 					}
 				}
+				// The rest of a response after a question is not needed.
+				if (this.waitingForAnswer) controller.abort('Waiting for the answer')
 				await Promise.all(actionPromises)
 			} catch (e) {
 				if (e === 'Cancelled by user' || (e instanceof Error && e.name === 'AbortError')) {

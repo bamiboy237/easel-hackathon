@@ -12,6 +12,7 @@ import { DeleteActionUtil } from '../actions/DeleteActionUtil'
 import { DistributeActionUtil } from '../actions/DistributeActionUtil'
 import { LabelActionUtil } from '../actions/LabelActionUtil'
 import { MapActionUtil } from '../actions/MapActionUtil'
+import { AskActionUtil } from '../actions/AskActionUtil'
 import { MessageActionUtil } from '../actions/MessageActionUtil'
 import { MoveActionUtil } from '../actions/MoveActionUtil'
 import { PenActionUtil } from '../actions/PenActionUtil'
@@ -134,6 +135,7 @@ export const AGENT_MODE_DEFINITIONS = [
 		actions: [
 			// Communication
 			MessageActionUtil.type,
+			AskActionUtil.type,
 
 			// Planning
 			ThinkActionUtil.type,
