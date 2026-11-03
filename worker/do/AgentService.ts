@@ -152,6 +152,9 @@ export class AgentService {
 				if (part.type === 'raw') {
 					lastProviderEvents.push(JSON.stringify(part.rawValue).slice(0, 300))
 					if (lastProviderEvents.length > 3) lastProviderEvents.shift()
+					// The SDK drops in-stream Responses API error events, so surface the provider's message.
+					const providerError = getProviderStreamError(part.rawValue)
+					if (providerError) throw new Error(providerError)
 				}
 				switch (part.type) {
 					case 'text-start':
@@ -197,6 +200,13 @@ export class AgentService {
 			throw error
 		}
 	}
+}
+
+function getProviderStreamError(rawValue: unknown): string | null {
+	if (!rawValue || typeof rawValue !== 'object') return null
+	const event = rawValue as { type?: unknown; error?: { message?: unknown } }
+	if (event.type !== 'error' || typeof event.error?.message !== 'string') return null
+	return event.error.message
 }
 
 type StreamTextProviderOptions = NonNullable<Parameters<typeof streamText>[0]['providerOptions']>
