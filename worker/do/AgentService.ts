@@ -34,7 +34,10 @@ export class AgentService {
 		this.openai = createOpenAI({ apiKey: env.OPENAI_API_KEY })
 		this.anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY })
 		this.google = createGoogleGenerativeAI({ apiKey: env.GOOGLE_API_KEY })
-		this.meta = createOpenAI({ apiKey: env.MODEL_API_KEY, baseURL: 'https://api.meta.ai/v1' })
+		this.meta = createOpenAI({
+			apiKey: env.MODEL_API_KEY,
+			baseURL: env.MODEL_API_BASE_URL || 'https://api.meta.ai/v1',
+		})
 		// chatgpt/helper.ts holds the real token, so this key is never used.
 		this.chatgpt = createOpenAI({ apiKey: 'unused', baseURL: 'http://127.0.0.1:8788/v1' })
 	}

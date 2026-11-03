@@ -4,4 +4,6 @@ export interface Environment {
 	ANTHROPIC_API_KEY: string
 	GOOGLE_API_KEY: string
 	MODEL_API_KEY: string
+	/** Optional. Overrides the Meta Model API base URL, for example to route through a local relay. */
+	MODEL_API_BASE_URL?: string
 }
