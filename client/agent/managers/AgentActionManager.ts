@@ -1,4 +1,4 @@
-import { atom, RecordsDiff, structuredClone, TLRecord, TLShapeId } from 'tldraw'
+import { atom, Box, BoxModel, RecordsDiff, structuredClone, TLRecord, TLShapeId } from 'tldraw'
 import { parseAgentAction } from '../../../shared/schema/parseAgentAction'
 import { AgentAction } from '../../../shared/types/AgentAction'
 import { ChatHistoryItem } from '../../../shared/types/ChatHistoryItem'
@@ -16,6 +16,12 @@ const MAX_REJECTION_PASSES = 3
 
 /** How long the board outlines protected shapes after the agent bumps into them. */
 export const PROTECTED_FLASH_MS = 1600
+
+/** Where the agent is working on the board, and a short line about the step. */
+export interface AgentWork {
+	bounds: BoxModel
+	step: string
+}
 
 /** How long a change ghost fades on the board. */
 export const CHANGE_GHOST_MS = 320
@@ -62,6 +68,9 @@ export class AgentActionManager extends BaseAgentManager {
 	private $changeGhosts = atom<ChangeGhost[]>('change ghosts', [])
 	private changeGhostTimeout: ReturnType<typeof setTimeout> | null = null
 
+	/** Where the agent is working on the board during this request, and on what. */
+	private $work = atom<AgentWork | null>('agent work', null)
+
 	constructor(agent: TldrawAgent) {
 		super(agent)
 		this.agentActionUtils = getAgentActionUtilsRecordForMode(
@@ -83,7 +92,33 @@ export class AgentActionManager extends BaseAgentManager {
 	/** Called as each request starts. A new user request gets a fresh retry budget. */
 	onRequestStart(source: string): void {
 		this.rejectionNoticePending = false
-		if (source !== 'self') this.rejectionPasses = 0
+		// The agent's own follow-up passes continue the same work, so its place stays.
+		if (source !== 'self') {
+			this.rejectionPasses = 0
+			this.$work.set(null)
+		}
+	}
+
+	/**
+	 * Where the agent is changing the board right now, and a short line about the
+	 * step, while a request runs. Null before its first change, and after the
+	 * request ends.
+	 */
+	getWork(): AgentWork | null {
+		if (!this.agent.requests.isGenerating()) return null
+		return this.$work.get()
+	}
+
+	/** Remember the shapes an applied step changed as the agent's working place. */
+	private noteWork(action: Streaming<AgentAction>, changes: RecordsDiff<TLRecord>) {
+		const { editor } = this.agent
+		const ids = [...Object.keys(changes.added), ...Object.keys(changes.updated)].filter((id) =>
+			id.startsWith('shape:')
+		) as TLShapeId[]
+		const boxes = ids.map((id) => editor.getShapePageBounds(id)).filter((b): b is Box => !!b)
+		if (boxes.length === 0) return
+		const intent = 'intent' in action && typeof action.intent === 'string' ? action.intent.trim() : ''
+		this.$work.set({ bounds: Box.Common(boxes).toJson(), step: intent || this.$work.get()?.step || '' })
 	}
 
 	/** The protected shapes the board outlines briefly after a protected rejection. */
@@ -240,6 +275,7 @@ export class AgentActionManager extends BaseAgentManager {
 				if (result.status === 'applied') {
 					commandId = result.commandId
 					this.markLanded(Object.keys(result.changes.added))
+					this.noteWork(action, result.changes)
 				}
 				if (result.status === 'rejected') {
 					rejected = true

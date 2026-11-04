@@ -1,4 +1,4 @@
-/** A fountain-pen nib, the agent's mark: on the send button and on the ball. */
+/** A fountain-pen nib: the send button, which writes the message. */
 export function NibIcon({ size = 16 }: { size?: number }) {
 	return (
 		<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

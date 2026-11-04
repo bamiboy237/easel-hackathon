@@ -557,16 +557,70 @@
 	position: static;
 	z-index: auto;
 	background-color: var(--paper-card);
-	padding-right: 64px;
 }
 
+/* The card's controls sit on their own row, so streamed text never runs under them. */
 .chat-panel--floating.tl-theme__light .chat-answer-controls {
-	position: absolute;
-	top: 8px;
-	right: 8px;
-	z-index: 1000;
 	display: flex;
+	flex: none;
+	justify-content: flex-end;
 	gap: 2px;
+	padding: 6px 8px 0;
+}
+
+.chat-panel--floating.tl-theme__light .chat-answer .chat-answer-controls + .chat-history {
+	padding-top: 0;
+}
+
+/* While the agent draws, the card is one quiet line: three dots and the step. */
+.chat-panel--floating.tl-theme__light .chat-answer-status {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0;
+	padding: 2px 16px 14px;
+	color: var(--tl-color-text-3);
+	font-size: 13px;
+	line-height: 18px;
+}
+
+.chat-panel--floating.tl-theme__light .chat-answer-status-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.chat-working-dots {
+	display: inline-flex;
+	flex: none;
+	gap: 4px;
+}
+
+.chat-working-dots span {
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background-color: var(--tl-color-text);
+	opacity: 0.3;
+	animation: chat-working 1.2s ease-in-out infinite;
+}
+
+.chat-working-dots span:nth-child(2) {
+	animation-delay: 0.15s;
+}
+
+.chat-working-dots span:nth-child(3) {
+	animation-delay: 0.3s;
+}
+
+@keyframes chat-working {
+	0%,
+	100% {
+		opacity: 0.3;
+	}
+	50% {
+		opacity: 0.9;
+	}
 }
 
 /* The composer grows out of the ball's corner, and the ball settles back into it. */
@@ -595,13 +649,13 @@
 	width: 44px;
 	height: 44px;
 	padding: 0;
-	border: none;
+	/* A paper disc with the agent's face in ink, so the drawing reads. */
+	border: 1px solid var(--paper-rule);
 	border-radius: 50%;
-	background-color: var(--paper-accent);
-	color: #f5f1e7;
+	background-color: var(--paper-card);
 	box-shadow:
-		0 1px 2px rgba(60, 45, 20, 0.12),
-		0 8px 20px rgba(60, 45, 20, 0.16);
+		0 1px 2px rgba(60, 45, 20, 0.1),
+		0 8px 20px rgba(60, 45, 20, 0.12);
 	cursor: pointer;
 	transform-origin: bottom right;
 	animation: paper-pop 180ms var(--ease-out);
@@ -609,7 +663,7 @@
 }
 
 .chat-panel--ball.tl-theme__light .chat-ball:hover {
-	background-color: #2a3f36;
+	background-color: var(--paper-hover);
 }
 
 .chat-panel--ball.tl-theme__light .chat-ball:active {
@@ -646,7 +700,7 @@
 	right: 2px;
 	width: 10px;
 	height: 10px;
-	border: 2px solid #f5f1e7;
+	border: 2px solid var(--paper-card);
 	border-radius: 50%;
 	background-color: #ae3b2c;
 }
@@ -1030,8 +1084,13 @@
 
 	/* The listening dot, the thinking dots, and the agent's working ring hold still. */
 	.mark-listening-dot,
-	.thread-thinking span {
+	.thread-thinking span,
+	.chat-working-dots span {
 		animation: none;
+	}
+
+	.chat-working-dots span {
+		opacity: 0.6;
 	}
 
 	.chat-panel--ball.tl-theme__light .chat-ball--working::after {
@@ -1043,4 +1102,12 @@
 	.chat-panel.tl-theme__light .chat-input-submit:active:not(:disabled) {
 		transform: none;
 	}
+}
+
+/* The agent's face keeps its drawn size and never catches a drag. */
+.agent-face {
+	display: block;
+	flex: none;
+	pointer-events: none;
+	user-select: none;
 }
