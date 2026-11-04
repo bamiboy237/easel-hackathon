@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { useValue } from 'tldraw'
 import { TldrawAgent } from '../../agent/TldrawAgent'
 import { ChatHistorySection, getAgentHistorySections } from './ChatHistorySection'
@@ -36,48 +36,30 @@ export function ChatHistory({ agent, latestOnly = false }: { agent: TldrawAgent;
 	const allSections = getAgentHistorySections(historyItems)
 	const sections = latestOnly ? allSections.slice(-1) : allSections
 	const historyRef = useRef<HTMLDivElement>(null)
-	const previousScrollDistanceFromBottomRef = useRef(0)
+	const lastPromptCount = useRef(-1)
+	const promptCount = sections.length
 
-	useEffect(() => {
-		if (!historyRef.current) return
-
-		// If a new prompt is submitted by the user, scroll to the bottom
-		if (historyItems.at(-1)?.type === 'prompt') {
-			if (previousScrollDistanceFromBottomRef.current <= 0) {
-				historyRef.current.scrollTo(0, historyRef.current.scrollHeight)
-				previousScrollDistanceFromBottomRef.current = 0
-			}
-			return
-		}
-
-		// If the user is scrolled to the bottom, keep them there while new actions appear
-		if (previousScrollDistanceFromBottomRef.current <= 0) {
-			const scrollDistanceFromBottom =
-				historyRef.current.scrollHeight -
-				historyRef.current.scrollTop -
-				historyRef.current.clientHeight
-
-			if (scrollDistanceFromBottom > 0) {
-				historyRef.current.scrollTo(0, historyRef.current.scrollHeight)
-			}
-		}
-	}, [historyRef, historyItems])
-
-	// Keep track of the user's scroll position
-	const handleScroll = () => {
-		if (!historyRef.current) return
-		const scrollDistanceFromBottom =
-			historyRef.current.scrollHeight -
-			historyRef.current.scrollTop -
-			historyRef.current.clientHeight
-
-		previousScrollDistanceFromBottomRef.current = scrollDistanceFromBottom
-	}
+	// When a new question is asked, scroll once so it sits at the top, with the
+	// answer filling in below it. The view never follows the answer after that,
+	// so reading is never pulled away while text streams in.
+	useLayoutEffect(() => {
+		const history = historyRef.current
+		if (!history) return
+		const first = lastPromptCount.current === -1
+		const asked = promptCount > lastPromptCount.current
+		lastPromptCount.current = promptCount
+		if (!asked) return
+		const sectionsEls = history.querySelectorAll<HTMLElement>('.chat-history-section')
+		const last = sectionsEls[sectionsEls.length - 1]
+		if (!last) return
+		const top = last.offsetTop - parseFloat(getComputedStyle(history).paddingTop || '0')
+		history.scrollTo({ top: Math.max(0, top), behavior: first ? 'instant' : 'smooth' })
+	}, [promptCount])
 
 	const isGenerating = useValue('isGenerating', () => agent.requests.isGenerating(), [agent])
 
 	return (
-		<div className="chat-history" ref={historyRef} onScroll={handleScroll}>
+		<div className="chat-history" ref={historyRef}>
 			{sections.map((section, i) => {
 				return (
 					<ChatHistorySection

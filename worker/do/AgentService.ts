@@ -85,21 +85,17 @@ export class AgentService {
 		// Build messages with provider-specific options
 		const messages: ModelMessage[] = []
 
-		// Add system prompt with Anthropic caching if applicable
-		if (provider === 'anthropic.messages') {
-			// Anthropic requires explicit cache breakpoints. We set one at the end of the
-			// system prompt to cache all system content (which generally changes together).
+		// The system prompt goes in the SDK's `system` option, except for Anthropic:
+		// its cache breakpoint is set on a system message, at the end of the system
+		// prompt, so all system content (which changes together) is cached.
+		const systemInMessages = provider === 'anthropic.messages'
+		if (systemInMessages) {
 			messages.push({
 				role: 'system',
 				content: systemPrompt,
 				providerOptions: {
 					anthropic: { cacheControl: { type: 'ephemeral' } },
 				},
-			})
-		} else {
-			messages.push({
-				role: 'system',
-				content: systemPrompt,
 			})
 		}
 
@@ -131,6 +127,7 @@ export class AgentService {
 		try {
 			const { fullStream } = streamText({
 				model,
+				...(systemInMessages ? { allowSystemInMessages: true } : { system: systemPrompt }),
 				messages,
 				maxOutputTokens: MAX_OUTPUT_TOKENS,
 				// Opus 4.7+ removed `temperature` (and top_p/top_k); sending it returns a 400.
@@ -195,7 +192,9 @@ export class AgentService {
 						finishReason = part.finishReason
 						break
 					case 'error':
-						throw part.error
+						// Some providers end the stream with an error that carries nothing.
+						throw part.error ??
+							new Error(`The model stream failed without a reason. Last provider events: ${lastProviderEvents.join(' | ') || 'none'}`)
 					case 'abort':
 						throw new Error('Agent response was canceled.')
 				}
@@ -240,8 +239,10 @@ function getProviderOptions(definition: AgentModelDefinition): StreamTextProvide
 					thinkingConfig: { thinkingLevel: definition.thinkingLevel },
 				} satisfies GoogleGenerativeAIProviderOptions,
 			}
-		case 'openai':
+		// Meta's Muse models are not reasoning models, so they get no reasoning effort.
 		case 'meta':
+			return {}
+		case 'openai':
 		case 'chatgpt':
 			return {
 				openai: {

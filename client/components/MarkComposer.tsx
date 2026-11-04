@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Editor, renderPlaintextFromRichText, TLRichText, TLShapeId, useEditor, useValue } from 'tldraw'
+import { Box, Editor, renderPlaintextFromRichText, TLRichText, TLShapeId, useEditor, useValue } from 'tldraw'
+import { findNoteSpot } from '../agent/findClearSpace'
 import { MARK_LABELS } from '../agent/marks'
 import { useAgent } from '../agent/TldrawAgentAppProvider'
 
@@ -31,6 +32,10 @@ function describeTargets(editor: Editor, ids: TLShapeId[]): string {
  * The sticky note that opens beside a mark. Enter asks, Escape drops
  * the mark. With nothing typed, the kind of mark is the question.
  */
+/** The note's size on screen: as wide as a thread, so the question keeps its width when it becomes one. */
+const NOTE_WIDTH = 280
+const NOTE_HEIGHT = 120
+
 export function MarkComposer() {
 	const editor = useEditor()
 	const agent = useAgent()
@@ -40,9 +45,21 @@ export function MarkComposer() {
 		() => {
 			const d = agent.marks.getDraft()
 			if (!d) return null
-			// Beside the mark, so it never covers what is under or next to it.
-			const p = editor.pageToViewport({ x: d.bounds.x + d.bounds.w, y: d.bounds.y })
-			return { x: Math.round(p.x + 14), y: Math.round(p.y) }
+			// Where the user dragged it, if they did.
+			if (d.noteAt) {
+				const p = editor.pageToViewport(d.noteAt)
+				return { x: Math.round(p.x), y: Math.round(p.y) }
+			}
+			// In the nearest clear space beside the mark, the same search a thread
+			// uses, so the question never covers what it asks about or what is next
+			// to it. The note keeps its size on screen, so it is measured in page
+			// units at the current zoom.
+			const zoom = editor.getZoomLevel()
+			const mark = Box.From(d.bounds)
+			const ignore = d.shapeId ? [d.shapeId] : []
+			const spot = findNoteSpot(editor, mark, { w: NOTE_WIDTH / zoom, h: NOTE_HEIGHT / zoom }, ignore)
+			const p = editor.pageToViewport(spot ? { x: spot.x, y: spot.y } : { x: mark.maxX + 14 / zoom, y: mark.y })
+			return { x: Math.round(p.x), y: Math.round(p.y) }
 		},
 		[agent, editor]
 	)
@@ -56,6 +73,22 @@ export function MarkComposer() {
 		if (draft) requestAnimationFrame(() => inputRef.current?.focus())
 	}, [draft?.id])
 
+	// Escape drops the note wherever the keyboard is, not only in its text line:
+	// the microphone prompt, or a click on the board to add a shape, can take
+	// focus away from the note.
+	useEffect(() => {
+		if (!draft) return
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key !== 'Escape') return
+			event.preventDefault()
+			event.stopPropagation()
+			agent.marks.cancelDraft()
+			editor.focus()
+		}
+		window.addEventListener('keydown', handleKeyDown, { capture: true })
+		return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
+	}, [draft?.id, agent, editor])
+
 	// The words fill the note as they are heard; the user can edit them before asking.
 	useEffect(() => {
 		if (spoken !== null) setText(spoken)
@@ -68,7 +101,27 @@ export function MarkComposer() {
 		<div
 			className="mark-composer"
 			style={{ left: anchor.x, top: anchor.y }}
-			onPointerDown={(e) => e.stopPropagation()}
+			// The note moves like paper: drag it by anywhere but the line you write on.
+			onPointerDown={(e) => {
+				e.stopPropagation()
+				if ((e.target as HTMLElement).closest('input, button')) return
+				e.preventDefault()
+				const start = { x: e.clientX, y: e.clientY }
+				const screen = editor.getViewportScreenBounds()
+				const from = editor.screenToPage({ x: anchor.x + screen.x, y: anchor.y + screen.y })
+				const zoom = editor.getZoomLevel()
+				const target = e.currentTarget
+				target.setPointerCapture(e.pointerId)
+				const move = (ev: PointerEvent) =>
+					agent.marks.moveDraftNote({ x: from.x + (ev.clientX - start.x) / zoom, y: from.y + (ev.clientY - start.y) / zoom })
+				const up = () => {
+					target.removeEventListener('pointermove', move)
+					target.removeEventListener('pointerup', up)
+					inputRef.current?.focus()
+				}
+				target.addEventListener('pointermove', move)
+				target.addEventListener('pointerup', up)
+			}}
 		>
 			<div className="mark-composer-label">
 				<span>{about}</span>
@@ -99,13 +152,8 @@ export function MarkComposer() {
 						if (listening !== 'off') agent.marks.stopListening()
 						setText(e.target.value)
 					}}
-					onKeyDown={(e) => {
-						e.stopPropagation()
-						if (e.key === 'Escape') {
-							agent.marks.cancelDraft()
-							editor.focus()
-						}
-					}}
+					// Keys typed here are the user's words, not board shortcuts. Escape is handled above.
+					onKeyDown={(e) => e.stopPropagation()}
 				/>
 			</form>
 			<div className="mark-composer-hint">Enter to ask · Esc to cancel · Click to add</div>

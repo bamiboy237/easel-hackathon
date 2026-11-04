@@ -41,7 +41,8 @@ const INKS = {
  * it grey, so these are clean watercolor washes of each hue instead.
  */
 const WASHES: Record<keyof typeof INKS, { tint: string; note: string }> = {
-	black: { tint: '#E6E1D6', note: '#F5E2A8' },
+	// The default sticky note is the same yellow as a thread's note, so the board has one yellow.
+	black: { tint: '#E6E1D6', note: '#F9EDB0' },
 	grey: { tint: '#ECE8DF', note: '#E4DFD4' },
 	'light-violet': { tint: '#EFE3F3', note: '#E7D4EF' },
 	violet: { tint: '#E7DDF0', note: '#DCCBEA' },

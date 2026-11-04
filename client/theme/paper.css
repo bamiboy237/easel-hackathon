@@ -76,12 +76,31 @@
 	background-blend-mode: multiply, multiply, multiply, normal;
 }
 
+/* The full conversation slides in from the right edge when it opens. */
+.chat-panel.tl-theme__light:not(.chat-panel--floating) {
+	animation: panel-slide-in 200ms var(--ease-out);
+}
+
+@keyframes panel-slide-in {
+	from {
+		opacity: 0;
+		transform: translateX(12px);
+	}
+}
+
 /* Quiet frames: a serif title like a section heading, with no chip behind it. */
 .tl-theme__light .tl-frame-heading {
 	font-family: 'Source Serif 4 Variable', Georgia, serif;
 	font-size: 14px;
 	font-weight: 500;
 	padding-bottom: 6px;
+}
+
+/* tldraw fills the title's hit area with a flat background, which shows as a
+ * chip on the textured paper. The title sits on the paper itself. */
+.tl-theme__light .tl-frame-heading-hit-area {
+	background: transparent !important;
+	box-shadow: none !important;
 }
 
 /* The active tool is a soft tan pill with a dark icon, not a solid accent square. */
@@ -643,6 +662,21 @@
 	padding: 14px 16px 16px;
 }
 
+/*
+ * Chat scrolls stay in the chat: reaching the end never moves the board or the
+ * page. Text fades out at the edges instead of being cut by them.
+ */
+.chat-panel.tl-theme__light .chat-history {
+	overscroll-behavior: contain;
+	--fade: 16px;
+	/* In the full panel the question pins to the top, so only the bottom fades. */
+	mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fade)), transparent 100%);
+}
+
+.chat-panel--floating.tl-theme__light .chat-history {
+	mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade), #000 calc(100% - var(--fade)), transparent 100%);
+}
+
 .chat-panel--floating.tl-theme__light .chat-answer .chat-history-prompt-container {
 	position: static;
 	z-index: auto;
@@ -1108,6 +1142,7 @@
  * line of text sits on a rule. Enter asks; there is no send button.
  */
 .mark-composer {
+	cursor: grab;
 	--sticky: #fcf3bd;
 	--sticky-deep: #f6e7a0;
 	--sticky-ink: #3b3320;
@@ -1117,7 +1152,7 @@
 	position: absolute;
 	z-index: 400;
 	pointer-events: all;
-	width: 264px;
+	width: 280px;
 	padding: var(--rule-top) 12px 14px 30px;
 	border-radius: 2px 2px 3px 3px;
 	background:
@@ -1296,6 +1331,7 @@
 	.chat-panel.tl-theme__light .prompt-tag,
 	.mark-composer,
 	.mark-chip,
+	.chat-panel.tl-theme__light:not(.chat-panel--floating),
 	.chat-panel--floating.tl-theme__light .chat-answer,
 	.chat-panel--floating.tl-theme__light .chat-sheet,
 	.chat-panel--ball.tl-theme__light .chat-ball,
@@ -1358,4 +1394,12 @@
 
 .chat-panel.tl-theme__light .chat-model-select select:focus-visible {
 	outline: none;
+}
+
+.mark-composer:active {
+	cursor: grabbing;
+}
+
+.mark-composer input {
+	cursor: text;
 }

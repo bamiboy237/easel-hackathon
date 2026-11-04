@@ -35,6 +35,8 @@ export interface MarkDraft {
 	targetIds: TLShapeId[]
 	/** True when the stroke is the user's own pen drawing, which dropping the mark must keep. */
 	adopted?: boolean
+	/** Where the user dragged the question note, on the page. Its thread opens there. */
+	noteAt?: VecModel
 }
 
 /** The mark the current request is about, sent to the model with a crop of its region. */
@@ -349,6 +351,13 @@ export class AgentMarkManager extends BaseAgentManager {
 		this.$draft.set({ id: `mark-${Date.now().toString(36)}`, kind, bounds: bounds.toJson(), shapeId, targetIds, adopted: true })
 	}
 
+	/** The user dragged the question note: keep it there, and open the thread there. */
+	moveDraftNote(at: VecModel) {
+		const draft = this.$draft.get()
+		if (!draft) return
+		this.$draft.set({ ...draft, noteAt: { x: at.x, y: at.y } })
+	}
+
 	/** Add a shape to the draft's targets, or take it out. */
 	toggleTarget(shapeId: TLShapeId) {
 		const draft = this.$draft.get()
@@ -412,6 +421,7 @@ export class AgentMarkManager extends BaseAgentManager {
 		const view = editor.getViewportPageBounds()
 		const beside = findClearSpaceBeside(editor, markBounds, room)
 		const spot =
+			(draft.noteAt ? new Box(draft.noteAt.x, draft.noteAt.y, THREAD_WIDTH, h) : null) ??
 			findNoteSpot(editor, markBounds, room) ??
 			(beside && view.contains(beside) ? beside : null) ??
 			new Box(markBounds.maxX + 24, markBounds.y, THREAD_WIDTH, h)
