@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import {
+	createShapePropsMigrationIds,
+	createShapePropsMigrationSequence,
 	Editor,
 	Geometry2d,
 	HTMLContainer,
@@ -32,6 +34,10 @@ export interface ThreadShapeProps {
 	entries: ThreadEntry[]
 	/** Unused: whether a thread is detached is worked out from its bindings. Kept so saved boards still load. */
 	detached: boolean
+	/** Folded to a small pin at its mark, out of the way. */
+	folded: boolean
+	/** The user marked the question answered. A resolved thread is a pin with a check. */
+	resolved: boolean
 }
 
 declare module 'tldraw' {
@@ -41,6 +47,28 @@ declare module 'tldraw' {
 }
 
 export type ThreadShape = TLShape<typeof THREAD_TYPE>
+
+const versions = createShapePropsMigrationIds(THREAD_TYPE, { AddFold: 1 })
+
+/** Threads saved before pins existed open, unresolved. */
+const threadMigrations = createShapePropsMigrationSequence({
+	sequence: [
+		{
+			id: versions.AddFold,
+			up(props) {
+				props.folded = false
+				props.resolved = false
+			},
+			down(props) {
+				delete props.folded
+				delete props.resolved
+			},
+		},
+	],
+})
+
+/** A folded thread's pin, in page units. */
+export const PIN_SIZE = 26
 
 /** The note's ruled layout: every line of text sits on a 24 px rule. */
 export const THREAD_WIDTH = 280
@@ -85,10 +113,13 @@ export class ThreadShapeUtil extends ShapeUtil<ThreadShape> {
 		targetIds: T.arrayOf(T.string),
 		entries: T.arrayOf(T.object({ author: T.literalEnum('user', 'agent'), text: T.string })),
 		detached: T.boolean,
+		folded: T.boolean,
+		resolved: T.boolean,
 	}
+	static override migrations = threadMigrations
 
 	override getDefaultProps(): ThreadShapeProps {
-		return { w: THREAD_WIDTH, h: PAD_TOP + 2 * RULE + PAD_BOTTOM, kind: 'circle', markShapeId: '', targetIds: [], entries: [], detached: false }
+		return { w: THREAD_WIDTH, h: PAD_TOP + 2 * RULE + PAD_BOTTOM, kind: 'circle', markShapeId: '', targetIds: [], entries: [], detached: false, folded: false, resolved: false }
 	}
 
 	override canResize() {
@@ -109,12 +140,43 @@ export class ThreadShapeUtil extends ShapeUtil<ThreadShape> {
 
 	override getIndicatorPath(shape: ThreadShape) {
 		const path = new Path2D()
-		path.roundRect(0, 0, shape.props.w, shape.props.h, 3)
+		if (shape.props.folded) path.arc(shape.props.w / 2, shape.props.h / 2, shape.props.w / 2, 0, Math.PI * 2)
+		else path.roundRect(0, 0, shape.props.w, shape.props.h, 3)
 		return path
 	}
 }
 
+/**
+ * A folded thread: a small red-pencil pin at its mark. It shows how many
+ * questions the thread holds, or a check once resolved. Clicking it opens the
+ * note again.
+ */
+function ThreadPin({ shape }: { shape: ThreadShape }) {
+	const editor = useEditor()
+	const questions = shape.props.entries.filter((entry) => entry.author === 'user').length
+	const first = shape.props.entries.find((entry) => entry.author === 'user')?.text ?? ''
+	return (
+		<HTMLContainer className="thread-note-container">
+			<button
+				className={'thread-pin' + (shape.props.resolved ? ' thread-pin--resolved' : '')}
+				style={{ width: shape.props.w, height: shape.props.h }}
+				title={first}
+				aria-label={(shape.props.resolved ? 'Resolved: ' : 'Folded question: ') + first}
+				onPointerDown={(e) => e.stopPropagation()}
+				onClick={() => agentOf(editor)?.marks.openThread(shape.id)}
+			>
+				{shape.props.resolved ? <CheckGlyph /> : questions}
+			</button>
+		</HTMLContainer>
+	)
+}
+
 function ThreadNote({ shape }: { shape: ThreadShape }) {
+	if (shape.props.folded) return <ThreadPin shape={shape} />
+	return <OpenThreadNote shape={shape} />
+}
+
+function OpenThreadNote({ shape }: { shape: ThreadShape }) {
 	const editor = useEditor()
 	const isSelected = useValue('thread selected', () => editor.getOnlySelectedShapeId() === shape.id, [editor, shape.id])
 	// The thread is busy while the agent answers in it. A follow-up then would be
@@ -122,7 +184,7 @@ function ThreadNote({ shape }: { shape: ThreadShape }) {
 	const busy = useValue(
 		'thread busy',
 		() => {
-			const agent = AgentAppAgentsManager.getAgents(editor)[0]
+			const agent = agentOf(editor)
 			if (!agent || !agent.requests.isGenerating()) return false
 			return shape.props.entries.at(-1)?.author === 'user' || agent.marks.getActive()?.threadId === shape.id
 		},
@@ -144,6 +206,16 @@ function ThreadNote({ shape }: { shape: ThreadShape }) {
 				className={'thread-note' + (detached ? ' thread-note--detached' : '')}
 				style={{ width: w, height: h }}
 			>
+				{!busy && (
+					<div className="thread-note-controls" onPointerDown={(e) => e.stopPropagation()}>
+						<button title="Fold to a pin" aria-label="Fold to a pin" onClick={() => agentOf(editor)?.marks.foldThread(shape.id)}>
+							<FoldGlyph />
+						</button>
+						<button title="Resolve" aria-label="Resolve" onClick={() => agentOf(editor)?.marks.resolveThread(shape.id)}>
+							<CheckGlyph />
+						</button>
+					</div>
+				)}
 				{entries.map((entry, i) => (
 					<p key={i} className={`thread-entry thread-entry--${entry.author}`}>
 						{entry.text}
@@ -165,7 +237,7 @@ function ThreadNote({ shape }: { shape: ThreadShape }) {
 						onPointerDown={(e) => e.stopPropagation()}
 						onSubmit={(e) => {
 							e.preventDefault()
-							const agent = AgentAppAgentsManager.getAgents(editor)[0]
+							const agent = agentOf(editor)
 							if (!agent || !text.trim()) return
 							agent.marks.followUp(shape.id, text)
 							setText('')
@@ -181,5 +253,26 @@ function ThreadNote({ shape }: { shape: ThreadShape }) {
 				)}
 			</div>
 		</HTMLContainer>
+	)
+}
+
+function agentOf(editor: Editor) {
+	return AgentAppAgentsManager.getAgents(editor)[0]
+}
+
+/** Fine pencil glyphs for the note's controls and the resolved pin. */
+function CheckGlyph() {
+	return (
+		<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+			<path d="M5 12.5 10 17.5 19 7" />
+		</svg>
+	)
+}
+
+function FoldGlyph() {
+	return (
+		<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+			<path d="M6 12h12" />
+		</svg>
 	)
 }

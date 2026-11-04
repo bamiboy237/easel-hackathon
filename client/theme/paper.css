@@ -127,6 +127,9 @@
 }
 
 .chat-panel.tl-theme__light .chat-wordmark {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
 	font-family: 'Source Serif 4 Variable', Georgia, serif;
 	font-size: 17px;
 	font-weight: 500;
@@ -759,6 +762,99 @@
 	opacity: 0.75;
 }
 
+/* Fold and resolve: two quiet pencil buttons just above the note's corner, on
+ * hover or focus, so they never sit on a line of writing. */
+.thread-note {
+	position: relative;
+}
+
+.thread-note-controls {
+	position: absolute;
+	bottom: 100%;
+	right: 0;
+	padding-bottom: 4px;
+	display: flex;
+	gap: 2px;
+	opacity: 0;
+	transition: opacity 150ms var(--ease-out);
+}
+
+.thread-note:hover .thread-note-controls,
+.thread-note-controls:focus-within {
+	opacity: 1;
+}
+
+@media (hover: none) {
+	.thread-note-controls {
+		opacity: 1;
+	}
+}
+
+.thread-note-controls button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: #716c62;
+	cursor: pointer;
+	transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+.thread-note-controls button:hover {
+	background-color: rgba(60, 45, 20, 0.07);
+	color: #302f2a;
+}
+
+.thread-note-controls button:active {
+	transform: scale(0.94);
+}
+
+/* A folded thread: a small sticky dot ringed in red pencil, with the count of questions. */
+.thread-pin {
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: 1.5px dashed rgba(174, 59, 44, 0.75);
+	border-radius: 50%;
+	background-color: #fcf3bd;
+	color: #ae3b2c;
+	font: 600 11px/1 Inter, system-ui, sans-serif;
+	box-shadow: 0 1px 2px rgba(60, 45, 20, 0.12), 0 4px 10px -4px rgba(60, 45, 20, 0.25);
+	cursor: pointer;
+	animation: pin-place 200ms var(--ease-out);
+	transition: transform 150ms var(--ease-out);
+}
+
+.thread-pin:hover {
+	transform: scale(1.08);
+}
+
+.thread-pin:active {
+	transform: scale(0.96);
+}
+
+/* Resolved: the check is written in ink, and the pin steps back. */
+.thread-pin--resolved {
+	border-style: solid;
+	border-color: rgba(60, 45, 20, 0.25);
+	color: #3b3320;
+	opacity: 0.75;
+}
+
+@keyframes pin-place {
+	from {
+		opacity: 0;
+		transform: scale(0.6);
+	}
+}
+
 .thread-entry {
 	margin: 0;
 	font-family: 'Source Serif 4 Variable', Georgia, serif;
@@ -1078,6 +1174,7 @@
 	.chat-panel--floating.tl-theme__light:not(.chat-panel--ball) .chat-input form,
 	.chat-panel--ball.tl-theme__light .chat-ball,
 	.thread-note,
+	.thread-pin,
 	.go-to-agent {
 		animation-name: paper-fade-in;
 	}

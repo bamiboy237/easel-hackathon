@@ -240,7 +240,10 @@ export function ChatPanel() {
 	return (
 		<div className="chat-panel tl-theme__light">
 			<div className="chat-header">
-				<span className="chat-wordmark">Easel</span>
+				<span className="chat-wordmark">
+					<AgentFace size={22} />
+					Easel
+				</span>
 				<span className="chat-header-actions">
 					<button className="new-chat-button" onClick={handleNewChat}>
 						New chat

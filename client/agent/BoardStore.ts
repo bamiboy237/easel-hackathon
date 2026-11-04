@@ -80,7 +80,7 @@ export class BoardStore {
 			editor.store.mergeRemoteChanges(() => {
 				if (stored.snapshot) loadSnapshot(editor.store, { document: stored.snapshot.document })
 				for (const command of replay) {
-					editor.store.applyDiff(command.payload as RecordsDiff<TLRecord>)
+					editor.store.applyDiff(withCurrentProps(editor, command.payload as RecordsDiff<TLRecord>))
 				}
 			})
 			this.commands.restore(stored.commands)
@@ -174,4 +174,26 @@ export class BoardStore {
 		})
 		if (!response.ok) throw new Error(`Board store answered ${response.status}.`)
 	}
+}
+
+/**
+ * Commands in the log hold records as they were when recorded. The snapshot is
+ * migrated when it loads, but these records are not, so a shape recorded before
+ * a prop was added lacks it. Fill any missing prop from the shape's defaults.
+ * This never changes a prop that is there, so it is safe for records that are
+ * already current.
+ */
+function withCurrentProps(editor: Editor, diff: RecordsDiff<TLRecord>): RecordsDiff<TLRecord> {
+	const fill = <R extends TLRecord>(record: R): R => {
+		if (record.typeName !== 'shape' || !editor.hasShapeUtil(record.type)) return record
+		const defaults = editor.getShapeUtil(record.type).getDefaultProps() as Record<string, unknown>
+		const props = record.props as Record<string, unknown>
+		if (Object.keys(defaults).every((key) => key in props)) return record
+		return { ...record, props: { ...defaults, ...props } }
+	}
+	const added: RecordsDiff<TLRecord>['added'] = {}
+	const updated: RecordsDiff<TLRecord>['updated'] = {}
+	for (const [id, record] of Object.entries(diff.added)) added[id as TLRecord['id']] = fill(record)
+	for (const [id, [from, to]] of Object.entries(diff.updated)) updated[id as TLRecord['id']] = [fill(from), fill(to)]
+	return { added, updated, removed: diff.removed }
 }

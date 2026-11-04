@@ -17,6 +17,7 @@ import {
 	TldrawAgentAppContextProvider,
 	TldrawAgentAppProvider,
 } from './agent/TldrawAgentAppProvider'
+import { BoardMenu } from './components/BoardMenu'
 import { ChatPanel } from './components/ChatPanel'
 import { ChatPanelFallback } from './components/ChatPanelFallback'
 import { ContextualStylePanel } from './components/ContextualStylePanel'
@@ -95,6 +96,12 @@ function App() {
 		return {
 			StylePanel: ContextualStylePanel,
 			Toolbar,
+			MainMenu: () =>
+				app && (
+					<TldrawAgentAppContextProvider app={app}>
+						<BoardMenu />
+					</TldrawAgentAppContextProvider>
+				),
 			InFrontOfTheCanvas: () =>
 				app && (
 					<TldrawAgentAppContextProvider app={app}>

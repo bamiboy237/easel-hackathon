@@ -64,6 +64,8 @@ export class MarkOverlayUtil extends OverlayUtil<MarkOverlay> {
 		const selected = new Set<string>(editor.getSelectedShapeIds())
 		const hovered = editor.getHoveredShapeId()
 		for (const thread of this.getThreads()) {
+			// A folded thread is a pin on its mark, so it needs no line.
+			if (thread.props.folded) continue
 			const note = editor.getShapePageBounds(thread)
 			const markId = thread.props.markShapeId as TLShapeId
 			const mark =
