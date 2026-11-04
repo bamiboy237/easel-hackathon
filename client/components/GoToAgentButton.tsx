@@ -87,7 +87,7 @@ export function GoToAgentButton({ agent }: { agent: TldrawAgent }) {
 							viewBox="0 0 24 24"
 							style={{
 								transform: `rotate(${angleToAgent}deg)`,
-								transition: 'transform 0.2s ease',
+								transition: 'transform 200ms cubic-bezier(0.23, 1, 0.32, 1)',
 							}}
 						>
 							<path

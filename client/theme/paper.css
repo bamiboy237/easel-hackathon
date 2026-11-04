@@ -12,6 +12,9 @@
 	--paper-ink: #1f1e1b;
 	--paper-accent: #2e4a6e;
 
+	/* Motion, after Emil Kowalski's rules: strong ease-out, short, and only transform and opacity. */
+	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
 	--tl-color-background: var(--paper);
 	--tl-color-selection-fill: rgba(46, 74, 110, 0.12);
 	--tl-color-selection-stroke: var(--paper-accent);
@@ -164,6 +167,15 @@
 	flex-direction: column;
 	gap: 8px;
 	padding: 4px 0;
+	animation: agent-ask-enter 200ms var(--ease-out);
+}
+
+/* The question rises in slightly, so the pause in the work does not go unnoticed. */
+@keyframes agent-ask-enter {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
 }
 
 .chat-panel.tl-theme__light .agent-ask-question {
@@ -194,6 +206,14 @@
 	color: var(--paper-ink);
 	font-size: 12px;
 	cursor: pointer;
+	transition: transform 160ms var(--ease-out);
+}
+
+/* Feedback lands on pointer down and fast (100 ms); the release eases back slower (160 ms). */
+.chat-panel.tl-theme__light .agent-ask-choices button:active:not(:disabled),
+.chat-panel.tl-theme__light .chat-input-submit:active:not(:disabled) {
+	transform: scale(0.97);
+	transition-duration: 100ms;
 }
 
 .chat-panel.tl-theme__light .agent-ask-key {
@@ -249,7 +269,7 @@
 	display: inline-block;
 	width: 8px;
 	color: var(--tl-color-text-3);
-	transition: transform 120ms ease-out;
+	transition: transform 120ms var(--ease-out);
 }
 
 .chat-panel.tl-theme__light .chat-history-change--open .chat-history-change-chevron {
@@ -333,6 +353,7 @@
 	height: 28px;
 	font-size: 13px;
 	box-shadow: none;
+	transition: transform 160ms var(--ease-out);
 }
 
 .chat-panel.tl-theme__light .chat-input-submit:disabled {
@@ -343,4 +364,22 @@
 .chat-panel.tl-theme__light .todo-list {
 	background-color: var(--paper-card);
 	border-color: var(--paper-rule);
+}
+
+/* Keep fades, drop movement, for people who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+	.chat-panel.tl-theme__light .agent-ask {
+		animation-name: agent-ask-fade;
+	}
+
+	.chat-panel.tl-theme__light .agent-ask-choices button:active:not(:disabled),
+	.chat-panel.tl-theme__light .chat-input-submit:active:not(:disabled) {
+		transform: none;
+	}
+}
+
+@keyframes agent-ask-fade {
+	from {
+		opacity: 0;
+	}
 }

@@ -15,7 +15,7 @@ type RejectedCommandResult = Extract<BoardCommandResult, { status: 'rejected' }>
 const MAX_REJECTION_PASSES = 3
 
 /** How long the board outlines protected shapes after the agent bumps into them. */
-const PROTECTED_FLASH_MS = 1600
+export const PROTECTED_FLASH_MS = 1600
 
 /**
  * Manages action-related functionality for the agent.
@@ -41,6 +41,7 @@ export class AgentActionManager extends BaseAgentManager {
 	private rejectionNoticePending = false
 	private $protectedFlash = atom<TLShapeId[]>('protected flash', [])
 	private protectedFlashTimeout: ReturnType<typeof setTimeout> | null = null
+	private protectedFlashStartedAt = 0
 
 	constructor(agent: TldrawAgent) {
 		super(agent)
@@ -69,6 +70,11 @@ export class AgentActionManager extends BaseAgentManager {
 	/** The protected shapes the board outlines briefly after a protected rejection. */
 	getProtectedFlash(): TLShapeId[] {
 		return this.$protectedFlash.get()
+	}
+
+	/** When the current protected flash started, so the overlay can fade it in and out. */
+	getProtectedFlashStartedAt(): number {
+		return this.protectedFlashStartedAt
 	}
 
 	/**
@@ -240,6 +246,8 @@ export class AgentActionManager extends BaseAgentManager {
 	}
 
 	private flashProtected(ids: TLShapeId[]) {
+		// Stamp the start first: the overlay reads it when the flash list changes.
+		this.protectedFlashStartedAt = Date.now()
 		this.$protectedFlash.update((current) => [...new Set([...current, ...ids])])
 		if (this.protectedFlashTimeout) clearTimeout(this.protectedFlashTimeout)
 		this.protectedFlashTimeout = setTimeout(() => {

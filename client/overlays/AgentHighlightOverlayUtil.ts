@@ -11,11 +11,14 @@ import {
 } from 'tldraw'
 import { ContextItem } from '../../shared/types/ContextItem'
 import { AgentAppAgentsManager } from '../agent/managers/AgentAppAgentsManager'
+import { PROTECTED_FLASH_MS } from '../agent/managers/AgentActionManager'
 
 type AgentHighlightColor = 'selected' | 'tooltip' | 'protected'
 
 // The outline on the user's shapes after the agent bumps into them stays quiet.
 const PROTECTED_ALPHA = 0.4
+const FLASH_IN_MS = 120
+const FLASH_OUT_MS = 240
 const ANIMATION_PERIOD = 100_000
 const DASH_SPEED = 20
 const MINIMAP_FILL_ALPHA = 0.12
@@ -28,6 +31,8 @@ interface AgentAreaHighlightOverlay extends TLOverlay {
 		bounds: BoxModel
 		color: AgentHighlightColor
 		generating: boolean
+		/** For a protected flash: when it started, so it can fade in and out. */
+		flashStartedAt?: number
 		label?: string
 	}
 }
@@ -95,7 +100,13 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 				overlays.push({
 					id: `agent-highlight:${agent.id}:protected:${shapeId}`,
 					type: 'agent-highlight',
-					props: { kind: 'area', bounds: toBoxModel(bounds), color: 'protected', generating: false },
+					props: {
+						kind: 'area',
+						bounds: toBoxModel(bounds),
+						color: 'protected',
+						generating: false,
+						flashStartedAt: agent.actions.getProtectedFlashStartedAt(),
+					},
 				})
 			}
 
@@ -111,7 +122,9 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 		// Track whether any overlay is animating so the tick handler knows when to
 		// advance the animation. This is a side effect, so it belongs in render
 		// (an effect) rather than getOverlays (a reactive computation).
-		this.hasAnimatedOverlays = overlays.some((overlay) => overlay.props.generating)
+		this.hasAnimatedOverlays = overlays.some(
+			(overlay) => overlay.props.generating || overlay.props.color === 'protected'
+		)
 
 		const zoom = this.editor.getZoomLevel()
 		const colors = this.getColors()
@@ -123,7 +136,10 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 			if (overlay.props.kind === 'area') {
 				this.renderArea(ctx, overlay.props.bounds, {
 					color,
-					alpha: overlay.props.color === 'protected' ? PROTECTED_ALPHA : 1,
+					alpha:
+						overlay.props.color === 'protected'
+							? PROTECTED_ALPHA * getFlashOpacity(overlay.props.flashStartedAt ?? 0)
+							: 1,
 					generating: overlay.props.generating,
 					dashOffset,
 					label: overlay.props.label,
@@ -385,6 +401,22 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 		if (!this.hasAnimatedOverlays) return
 		this.$animationElapsed.update((phase) => (phase + elapsed) % ANIMATION_PERIOD)
 	}
+}
+
+/**
+ * The protected flash fades in quickly and fades out a little slower, so it
+ * never pops on or off. Enter uses a strong ease-out; exit is a plain fade.
+ */
+function getFlashOpacity(startedAt: number): number {
+	const elapsed = Date.now() - startedAt
+	if (elapsed < FLASH_IN_MS) return easeOut(elapsed / FLASH_IN_MS)
+	const fadeStart = PROTECTED_FLASH_MS - FLASH_OUT_MS
+	if (elapsed < fadeStart) return 1
+	return Math.max(0, 1 - (elapsed - fadeStart) / FLASH_OUT_MS)
+}
+
+function easeOut(t: number): number {
+	return 1 - Math.pow(1 - t, 3)
 }
 
 function toBoxModel(box: BoxModel): BoxModel {
