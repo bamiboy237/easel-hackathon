@@ -2,8 +2,8 @@ import { TLShapeId } from 'tldraw'
 import { ReplyInThreadAction } from '../../shared/schema/AgentActionSchemas'
 import { Streaming } from '../../shared/types/Streaming'
 import { AgentHelpers } from '../AgentHelpers'
-import { findNoteSpot, overlapsShapes } from '../agent/findClearSpace'
-import { measureThreadHeight, THREAD_TYPE, ThreadShape } from '../shapes/ThreadShapeUtil'
+import { findNoteSpot, getUsableViewBounds, overlapsShapes } from '../agent/findClearSpace'
+import { getThreadOwnIds, measureThreadHeight, THREAD_TYPE, ThreadShape } from '../shapes/ThreadShapeUtil'
 import { Box } from 'tldraw'
 import { AgentActionUtil, registerActionUtil } from './AgentActionUtil'
 
@@ -51,12 +51,8 @@ export const ReplyInThreadActionUtil = registerActionUtil(
 			const h = measureThreadHeight(editor, entries)
 			const page = editor.getShapePageBounds(id)!
 			const grown = new Box(page.x, page.y, thread.props.w, h)
-			// The thread may sit over the frames that hold it, its mark, or its
-			// targets, but never over the targets themselves.
-			const related = [id, thread.props.markShapeId, ...thread.props.targetIds].filter(Boolean) as TLShapeId[]
-			const holders = related.flatMap((r) => (editor.getShape(r) ? editor.getShapeAncestors(r).map((s) => s.id) : []))
-			const own = [id, thread.props.markShapeId as TLShapeId, ...holders].filter(Boolean)
-			const view = editor.getViewportPageBounds()
+			const own = getThreadOwnIds(editor, thread)
+			const view = getUsableViewBounds(editor)
 			let position = { x: thread.x, y: thread.y }
 			if (overlapsShapes(editor, grown, own) || (view.contains(page) && !view.contains(grown))) {
 				const markId = thread.props.markShapeId as TLShapeId

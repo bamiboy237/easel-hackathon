@@ -1,10 +1,10 @@
 import { atom, b64Vecs, Box, BoxModel, createShapeId, Editor, renderPlaintextFromRichText, TLRichText, TLShapeId, VecModel } from 'tldraw'
 import { convertTldrawShapeToFocusedShape } from '../../../shared/format/convertTldrawShapeToFocusedShape'
-import { findClearSpaceBeside, findNoteSpot } from '../findClearSpace'
+import { findClearSpaceBeside, findNoteSpot, getUsableViewBounds, overlapsShapes } from '../findClearSpace'
 import { classifyStroke, findMarkTargets, MARK_INTENTS, MARK_LABELS, MarkKind } from '../marks'
 import { VoiceListener } from '../voice'
 import { ANNOTATION_BINDING, bindAnnotation, followDescendants } from '../../shapes/AnnotationBindingUtil'
-import { markThreadFresh, measureThreadHeight, PIN_SIZE, THREAD_TYPE, THREAD_WIDTH, ThreadEntry, ThreadShape } from '../../shapes/ThreadShapeUtil'
+import { getThreadOpenAt, getThreadOwnIds, markThreadFresh, measureThreadHeight, PIN_SIZE, THREAD_TYPE, THREAD_WIDTH, ThreadEntry, ThreadShape } from '../../shapes/ThreadShapeUtil'
 import { getBoardSettings } from '../boardSettings'
 import { BaseAgentManager } from './BaseAgentManager'
 
@@ -72,6 +72,28 @@ export class AgentMarkManager extends BaseAgentManager {
 		const { editor } = agent
 		// The microphone never outlives the app.
 		this.disposables.add(() => this.stopListening())
+		// When a drag or resize ends, threads that followed onto other work move
+		// clear. Only an actual move counts: the selection's bounds are noted at
+		// pointer down and compared after the release settles.
+		let pressed: { ids: TLShapeId[]; bounds: Box | undefined } | null = null
+		const handleEvent = (info: { name: string }) => {
+			if (info.name === 'pointer_down') {
+				const ids = editor.getSelectedShapeIds()
+				pressed = { ids: [...ids], bounds: editor.getSelectionPageBounds()?.clone() }
+				return
+			}
+			if (info.name !== 'pointer_up' || !pressed) return
+			const before = pressed
+			pressed = null
+			requestAnimationFrame(() => {
+				const ids = editor.getSelectedShapeIds()
+				const after = editor.getSelectionPageBounds()
+				if (ids.length === 0 || !after || (before.bounds && before.bounds.equals(after))) return
+				this.reflowThreadsAfterMove(ids)
+			})
+		}
+		editor.on('event', handleEvent)
+		this.disposables.add(() => editor.off('event', handleEvent))
 		// Annotations on shapes inside a moved frame or group follow too.
 		this.disposables.add(
 			editor.store.sideEffects.registerAfterChangeHandler('shape', (prev, next) => {
@@ -435,10 +457,46 @@ export class AgentMarkManager extends BaseAgentManager {
 	}
 
 	/** Move a thread so its top left is at a page point. */
-	private placeThread(thread: ThreadShape, at: { x: number; y: number }, props: Partial<ThreadShape['props']>) {
+	private placeThread(
+		thread: ThreadShape,
+		at: { x: number; y: number },
+		props: Partial<ThreadShape['props']>,
+		meta?: ThreadShape['meta']
+	) {
 		const { editor } = this.agent
 		const local = editor.getPointInParentSpace(thread.id, at)
-		editor.updateShape<ThreadShape>({ id: thread.id, type: THREAD_TYPE, x: local.x, y: local.y, props })
+		editor.updateShape<ThreadShape>({ id: thread.id, type: THREAD_TYPE, x: local.x, y: local.y, props, ...(meta ? { meta } : {}) })
+	}
+
+	/**
+	 * After the user drags or resizes shapes, an open thread that followed them
+	 * onto other work moves to the nearest clear spot beside its mark, once.
+	 */
+	private reflowThreadsAfterMove(moved: TLShapeId[]) {
+		const { editor } = this.agent
+		const movedSet = new Set<string>(moved)
+		for (const id of moved) editor.visitDescendants(id, (child) => void movedSet.add(child))
+		const selected = new Set<string>(editor.getSelectedShapeIds())
+		// A thread the agent is answering stays put until the answer is in, so
+		// moving it now cannot make the answer stale.
+		const answering = this.agent.requests.isGenerating() ? this.getActive()?.threadId : undefined
+		const threads = editor.getCurrentPageShapes().filter((shape): shape is ThreadShape => {
+			if (shape.type !== THREAD_TYPE) return false
+			const thread = shape as ThreadShape
+			if (thread.props.folded || selected.has(thread.id) || thread.id === answering) return false
+			return [thread.props.markShapeId, ...thread.props.targetIds].some((id) => movedSet.has(id))
+		})
+		if (threads.length === 0) return
+		this.agent.commands.execute('user', 'thread-reflow', () => {
+			// One at a time, so each search sees the notes already moved and two
+			// notes never land on the same spot.
+			for (const thread of threads) {
+				const note = editor.getShapePageBounds(thread.id)
+				if (!note || !overlapsShapes(editor, note, getThreadOwnIds(editor, thread))) continue
+				const spot = this.getNoteSpot(thread, thread.props.h)
+				this.placeThread(thread, { x: spot.x, y: spot.y }, {})
+			}
+		})
 	}
 
 	/**
@@ -452,8 +510,17 @@ export class AgentMarkManager extends BaseAgentManager {
 		const resolved = resolve || thread.props.resolved
 		editor.markHistoryStoppingPoint('thread-fold')
 		markThreadFresh(threadId)
+		// Remember where the note sat beside its mark, so opening the pin puts it back.
+		const subject = this.getThreadSubject(thread)
+		const note = editor.getShapePageBounds(thread.id)
+		const openAt = !thread.props.folded && note ? { dx: note.x - subject.x, dy: note.y - subject.y } : getThreadOpenAt(thread)
 		this.agent.commands.execute('user', resolve ? 'thread-resolve' : 'thread-fold', () => {
-			this.placeThread(thread, this.getPinSpot(thread), { folded: true, resolved, w: PIN_SIZE, h: PIN_SIZE })
+			this.placeThread(
+				thread,
+				this.getPinSpot(thread),
+				{ folded: true, resolved, w: PIN_SIZE, h: PIN_SIZE },
+				{ ...thread.meta, ...(openAt ? { openAt: { ...openAt } } : {}) }
+			)
 			editor.selectNone()
 		})
 	}
@@ -468,7 +535,13 @@ export class AgentMarkManager extends BaseAgentManager {
 	private getNoteSpot(thread: ThreadShape, h: number) {
 		const { editor } = this.agent
 		const subject = this.getThreadSubject(thread)
-		const ignore = [thread.id, thread.props.markShapeId as TLShapeId].filter(Boolean)
+		const ignore = getThreadOwnIds(editor, thread)
+		// Where the note sat before it was folded, if that place is still clear and in view.
+		const openAt = getThreadOpenAt(thread)
+		if (openAt) {
+			const before = new Box(subject.x + openAt.dx, subject.y + openAt.dy, THREAD_WIDTH, h)
+			if (!overlapsShapes(editor, before, ignore) && getUsableViewBounds(editor).contains(before)) return before
+		}
 		return (
 			findNoteSpot(editor, subject, { w: THREAD_WIDTH, h }, ignore) ??
 			new Box(subject.maxX + 24, subject.y, THREAD_WIDTH, h)

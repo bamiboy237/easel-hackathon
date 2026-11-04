@@ -10,6 +10,7 @@ import {
 	ShapeUtil,
 	T,
 	TLShape,
+	TLShapeId,
 	useEditor,
 	useValue,
 } from 'tldraw'
@@ -93,6 +94,29 @@ function useFresh(id: string) {
 		return () => clearTimeout(timer)
 	}, [fresh])
 	return fresh
+}
+
+/**
+ * What a thread may sit over: itself, its mark, and the frames and groups that
+ * hold the thread, its mark, or its targets. Its targets themselves, and
+ * everything else, it must not cover.
+ */
+export function getThreadOwnIds(editor: Editor, thread: ThreadShape): TLShapeId[] {
+	const markId = thread.props.markShapeId as TLShapeId
+	const related = [thread.id, markId, ...(thread.props.targetIds as TLShapeId[])].filter(Boolean)
+	const holders = related.flatMap((id) => (editor.getShape(id) ? editor.getShapeAncestors(id).map((s) => s.id) : []))
+	return [thread.id, ...(markId ? [markId] : []), ...holders]
+}
+
+/** Where a thread's note sat beside its subject before it was folded, kept in its meta. */
+export interface ThreadOpenAt {
+	dx: number
+	dy: number
+}
+
+export function getThreadOpenAt(thread: ThreadShape): ThreadOpenAt | undefined {
+	const openAt = thread.meta.openAt as Partial<ThreadOpenAt> | undefined
+	return typeof openAt?.dx === 'number' && typeof openAt.dy === 'number' ? { dx: openAt.dx, dy: openAt.dy } : undefined
 }
 
 /** A folded thread's pin, in page units. */
@@ -246,11 +270,15 @@ function OpenThreadNote({ shape }: { shape: ThreadShape }) {
 						</button>
 					</div>
 				)}
-				{entries.map((entry, i) => (
-					<p key={i} className={`thread-entry thread-entry--${entry.author}`}>
-						{entry.text}
-					</p>
-				))}
+				{entries.map((entry, i) =>
+					entry.author === 'agent' && i === entries.length - 1 ? (
+						<WrittenEntry key={i} text={entry.text} live={busy} />
+					) : (
+						<p key={i} className={`thread-entry thread-entry--${entry.author}`}>
+							{entry.text}
+						</p>
+					)
+				)}
 				{extra === 'thinking' && (
 					<p className="thread-entry thread-entry--quiet" aria-label="Thinking">
 						<span className="thread-thinking" aria-hidden>
@@ -284,6 +312,40 @@ function OpenThreadNote({ shape }: { shape: ThreadShape }) {
 			</div>
 		</HTMLContainer>
 	)
+}
+
+/** Characters written per second as an answer arrives: quick, but readable as writing. */
+const WRITE_RATE = 240
+
+/**
+ * The newest answer, written onto the note as it arrives instead of landing
+ * all at once, even when the model sends it in large pieces. An answer that
+ * appears while the agent is answering is written from its first letter; one
+ * already on a loaded board shows in full.
+ */
+function WrittenEntry({ text, live }: { text: string; live: boolean }) {
+	const [shown, setShown] = useState(live ? 0 : text.length)
+	useEffect(() => {
+		if (shown >= text.length) {
+			if (shown > text.length) setShown(text.length)
+			return
+		}
+		if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+			setShown(text.length)
+			return
+		}
+		let frame = 0
+		let last = performance.now()
+		const step = (now: number) => {
+			const add = Math.max(1, Math.round(((now - last) / 1000) * WRITE_RATE))
+			last = now
+			setShown((n) => Math.min(text.length, n + add))
+			frame = requestAnimationFrame(step)
+		}
+		frame = requestAnimationFrame(step)
+		return () => cancelAnimationFrame(frame)
+	}, [text, shown >= text.length])
+	return <p className="thread-entry thread-entry--agent">{text.slice(0, shown)}</p>
 }
 
 function agentOf(editor: Editor) {
