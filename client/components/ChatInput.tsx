@@ -1,16 +1,18 @@
-import { FormEventHandler } from 'react'
+import { FormEventHandler, useLayoutEffect } from 'react'
 import { useValue } from 'tldraw'
-import { NibIcon } from '../../shared/icons/NibIcon'
 import { AGENT_MODEL_DEFINITIONS, AgentModelName } from '../../shared/models'
 import { getOpenQuestion } from '../agent/openQuestion'
 import { useAgent } from '../agent/TldrawAgentAppProvider'
 import { ContextItemTag } from './ContextItemTag'
 import { SelectionTag } from './SelectionTag'
 
+/** Six lines of 24 px. */
+const MAX_INPUT_HEIGHT = 144
+
 /**
  * The composer: one sheet with room to write. The context it will send shows
- * only when there is some, the model is a quiet word, and the one strong color
- * is the pencil-nib send button. Marking lives in the toolbar.
+ * only when there is some, the model is a quiet word, and send is an arrow in
+ * an ink circle. Marking lives in the toolbar.
  */
 export function ChatInput({
 	handleSubmit,
@@ -34,11 +36,27 @@ export function ChatInput({
 	const modelName = useValue('modelName', () => agent.modelName.getModelName(), [agent])
 	const hasOpenQuestion = useValue('has open question', () => getOpenQuestion(agent.chat.getHistory()) !== null, [agent])
 	const hasContext = selectedShapes.length > 0 || contextItems.length > 0
+
+	// The composer starts as one line and grows with what is written, up to six
+	// lines; past that it scrolls.
+	useLayoutEffect(() => {
+		const textarea = inputRef.current
+		if (!textarea) return
+		textarea.style.height = 'auto'
+		textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_INPUT_HEIGHT)}px`
+	}, [value, inputRef])
 	const stops = isGenerating && value === ''
 
 	return (
 		<div className="chat-input">
 			<form
+				// A click anywhere on the sheet, not only on the text, puts the cursor in it.
+				onMouseDown={(e) => {
+					if (e.target === e.currentTarget) {
+						e.preventDefault()
+						inputRef.current?.focus()
+					}
+				}}
 				onSubmit={(e) => {
 					e.preventDefault()
 					handleSubmit(e)
@@ -58,7 +76,7 @@ export function ChatInput({
 					ref={inputRef}
 					name="input"
 					autoComplete="off"
-					rows={2}
+					rows={1}
 					placeholder={hasOpenQuestion ? 'Pick a choice above, or type your answer' : 'Ask, or mark something on the board'}
 					value={value}
 					onChange={(e) => onChange(e.currentTarget.value)}
@@ -90,11 +108,21 @@ export function ChatInput({
 						aria-label={stops ? 'Stop' : 'Send'}
 						title={stops ? 'Stop' : 'Send'}
 					>
-						{stops ? <StopGlyph /> : <NibIcon />}
+						{stops ? <StopGlyph /> : <SendGlyph />}
 					</button>
 				</span>
 			</form>
 		</div>
+	)
+}
+
+/** An arrow up, drawn with the same round pen as the toolbar icons. */
+function SendGlyph() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+			<path d="M12 19V5" />
+			<path d="m6 11 6-6 6 6" />
+		</svg>
 	)
 }
 

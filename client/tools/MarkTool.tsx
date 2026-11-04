@@ -85,6 +85,8 @@ class MarkDrawing extends StateNode {
 			const shape = this.editor.getShapeAtPoint(this.points[0], { hitInside: true })
 			if (shape && shape.id !== draft.shapeId) {
 				marks.toggleTarget(shape.id)
+				// The click took focus from the note; give it back, so Enter asks.
+				requestAnimationFrame(() => document.querySelector<HTMLInputElement>('.mark-composer input')?.focus())
 				return
 			}
 		}

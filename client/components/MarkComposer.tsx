@@ -1,17 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
 import { Editor, renderPlaintextFromRichText, TLRichText, TLShapeId, useEditor, useValue } from 'tldraw'
-import { MARK_INTENTS } from '../agent/marks'
+import { MARK_LABELS } from '../agent/marks'
 import { useAgent } from '../agent/TldrawAgentAppProvider'
 
-/** What the note is about, quoting the target's text when it has some: about "F = m a". */
-function describeTargets(editor: Editor, ids: TLShapeId[]): string {
-	if (ids.length === 0) return 'about this area'
-	if (ids.length > 1) return `about ${ids.length} shapes`
-	const shape = editor.getShape(ids[0])
+/** A shape's words, for naming it: its text, cut short, or null when it has none. */
+function shapeName(editor: Editor, id: TLShapeId, max: number): string | null {
+	const shape = editor.getShape(id)
 	const richText = (shape?.props as { richText?: TLRichText } | undefined)?.richText
 	const text = richText ? renderPlaintextFromRichText(editor, richText).trim().replace(/\s+/g, ' ') : ''
-	if (!text) return shape?.type === 'image' ? 'about this image' : 'about this'
-	return `about \u201c${text.length > 28 ? text.slice(0, 27) + '\u2026' : text}\u201d`
+	if (!text) return null
+	return `\u201c${text.length > max ? text.slice(0, max - 1) + '\u2026' : text}\u201d`
+}
+
+/** What the mark is about, by name: one or two shapes are named, more are counted. */
+function describeTargets(editor: Editor, ids: TLShapeId[]): string {
+	if (ids.length === 0) return 'about this area'
+	if (ids.length === 1) {
+		const name = shapeName(editor, ids[0], 28)
+		if (name) return `about ${name}`
+		return editor.getShape(ids[0])?.type === 'image' ? 'about this image' : 'about this'
+	}
+	if (ids.length === 2) {
+		const names = ids.map((id) => shapeName(editor, id, 14))
+		if (names.every(Boolean)) return `about ${names[0]} and ${names[1]}`
+	}
+	return `about ${ids.length} things`
 }
 
 /**
@@ -80,7 +93,7 @@ export function MarkComposer() {
 				<input
 					ref={inputRef}
 					value={text}
-					placeholder={listening !== 'off' ? 'Say your question, or type it' : MARK_INTENTS[draft.kind]}
+					placeholder={listening !== 'off' ? 'Say it, or type' : MARK_LABELS[draft.kind]}
 					onChange={(e) => {
 						// Typing takes over from listening and keeps the words heard so far.
 						if (listening !== 'off') agent.marks.stopListening()
@@ -95,7 +108,7 @@ export function MarkComposer() {
 					}}
 				/>
 			</form>
-			<div className="mark-composer-hint">Enter to ask · Esc to cancel · Click shapes to change</div>
+			<div className="mark-composer-hint">Enter to ask · Esc to cancel · Click to add</div>
 		</div>
 	)
 }

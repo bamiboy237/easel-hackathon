@@ -1,4 +1,3 @@
-import { SmallSpinner } from '../../../shared/icons/SmallSpinner'
 import {
 	ChatHistoryActionItem,
 	ChatHistoryContinuationItem,
@@ -30,7 +29,16 @@ export function ChatHistorySection({
 			{groups.map((group, i) => {
 				return <ChatHistoryGroup key={'chat-history-group-' + i} group={group} />
 			})}
-			{loading && <SmallSpinner />}
+			{loading && (
+				// The same breathing dots the agent shows on the board while it works.
+				<p className="chat-history-thinking" role="status" aria-label="Working">
+					<span className="chat-working-dots" aria-hidden>
+						<span />
+						<span />
+						<span />
+					</span>
+				</p>
+			)}
 		</div>
 	)
 }

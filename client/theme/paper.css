@@ -137,6 +137,10 @@
 	user-select: none;
 }
 
+.chat-panel.tl-theme__light button {
+	font-family: 'Inter', sans-serif;
+}
+
 .chat-panel.tl-theme__light .new-chat-button {
 	width: auto;
 	height: 28px;
@@ -391,29 +395,46 @@
 
 /*
  * The composer: one off-white sheet with room to write, a thin rule of a
- * border, and a faint shadow. Everything inside is quiet except the send
- * button, the one place the accent color appears.
+ * border, and a faint shadow. Everything inside is quiet, and send is the
+ * one dark mark on it.
  */
 .chat-panel.tl-theme__light .chat-input form {
-	gap: 6px;
-	padding: 14px 12px 10px 16px;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 8px;
+	padding: 8px 8px 8px 16px;
 	border: 1px solid var(--paper-rule);
-	border-radius: 18px;
+	border-radius: 22px;
 	background-color: var(--paper-card);
 	box-shadow: 0 1px 2px rgba(60, 45, 20, 0.05);
+	transition: border-color 150ms var(--ease-out);
 }
 
+/* The cursor is in the composer: the rule darkens toward forest, nothing more. */
 .chat-panel.tl-theme__light .chat-input form:focus-within {
-	border-color: #c9c1b2;
+	border-color: rgba(52, 76, 65, 0.4);
 }
 
+/* Context the message will carry sits on its own line above the writing. */
+.chat-panel.tl-theme__light .chat-input .prompt-tags {
+	flex-basis: 100%;
+}
+
+/* One line to start, growing with the words: 24 px lines on a 36 px row. */
 .chat-panel.tl-theme__light .chat-input textarea {
-	min-height: 44px;
-	padding: 0;
+	flex: 1 1 0;
+	width: auto;
+	min-width: 0;
+	min-height: 36px;
+	max-height: 144px;
+	padding: 6px 0;
 	margin: 0;
+	overflow-y: auto;
+	resize: none;
 	font-family: 'Source Serif 4 Variable', Georgia, serif;
 	font-size: 15px;
-	line-height: 1.5;
+	line-height: 24px;
 	color: var(--paper-ink);
 }
 
@@ -424,9 +445,11 @@
 
 .chat-panel.tl-theme__light .chat-actions {
 	display: flex;
+	flex: none;
 	align-items: center;
-	justify-content: flex-end;
 	gap: 12px;
+	width: auto;
+	height: 36px;
 }
 
 /* The model is a quiet word; the native menu opens over it. */
@@ -449,24 +472,33 @@
 	cursor: pointer;
 }
 
-/* Send is a pencil nib in forest green: the one strong color in the pane. */
+/*
+ * Send is an arrow in an ink circle: dark and quiet, like the pen. With
+ * nothing to send it fades to a stone circle, so it never shouts.
+ */
 .chat-panel.tl-theme__light .chat-input-submit {
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	width: 32px;
 	height: 32px;
 	border-radius: 50%;
-	background: var(--paper-accent);
-	color: #f5f1e7;
+	background: var(--paper-ink);
+	color: #faf8f2;
 	box-shadow: none;
-	transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out);
+	transition:
+		transform 160ms var(--ease-out),
+		background-color 160ms var(--ease-out),
+		color 160ms var(--ease-out);
 }
 
 .chat-panel.tl-theme__light .chat-input-submit:hover:not(:disabled) {
-	background: #2a3f36;
+	background: #1f1e1b;
 }
 
 .chat-panel.tl-theme__light .chat-input-submit:disabled {
-	background: #d9d4c9;
-	color: #f5f1e7;
+	background: #e7e3da;
+	color: #a39d92;
 	cursor: default;
 }
 
@@ -529,27 +561,72 @@
 	margin: 0;
 }
 
-.chat-panel--floating.tl-theme__light .chat-input form {
+/*
+ * The floating pane is one sheet: the answer, when there is one, is the top of
+ * the same card as the composer, with a hairline between them.
+ */
+.chat-panel--floating.tl-theme__light .chat-sheet {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+	border: 1px solid var(--paper-rule);
+	border-radius: 22px;
+	background-color: var(--paper-card);
 	box-shadow:
 		0 1px 2px rgba(60, 45, 20, 0.06),
 		0 10px 30px rgba(60, 45, 20, 0.08);
+	transition: border-color 150ms var(--ease-out);
+}
+
+.chat-panel--floating.tl-theme__light .chat-sheet:focus-within {
+	border-color: rgba(52, 76, 65, 0.4);
+}
+
+.chat-panel--floating.tl-theme__light .chat-sheet .chat-input form,
+.chat-panel--floating.tl-theme__light .chat-sheet .chat-input form:focus-within {
+	border: none;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+}
+
+.chat-panel--floating.tl-theme__light .chat-sheet .chat-input {
+	border-radius: 0;
+}
+
+.chat-panel--floating.tl-theme__light .chat-sheet--answering .chat-input {
+	border-top: 1px solid var(--paper-rule);
 }
 
 .chat-panel--floating.tl-theme__light .chat-answer {
-	position: relative;
 	display: flex;
 	flex-direction: column;
 	max-height: 46vh;
 	min-height: 0;
 	overflow: hidden;
-	border: 1px solid var(--paper-rule);
-	border-radius: 18px;
-	background-color: var(--paper-card);
-	box-shadow:
-		0 1px 2px rgba(60, 45, 20, 0.06),
-		0 10px 30px rgba(60, 45, 20, 0.08);
 	transform-origin: bottom center;
 	animation: chat-answer-open 200ms var(--ease-out);
+}
+
+/* The answer's first line: who is speaking, and the two ways out. */
+.chat-panel--floating.tl-theme__light .chat-answer-header {
+	display: flex;
+	flex: none;
+	align-items: center;
+	justify-content: space-between;
+	height: 36px;
+	padding: 6px 8px 0 16px;
+}
+
+.chat-panel--floating.tl-theme__light .chat-answer-title {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--tl-color-text-3);
+	user-select: none;
 }
 
 .chat-panel--floating.tl-theme__light .chat-answer .chat-history {
@@ -562,17 +639,21 @@
 	background-color: var(--paper-card);
 }
 
-/* The card's controls sit on their own row, so streamed text never runs under them. */
+/* The controls sit on the header line, so streamed text never runs under them. */
 .chat-panel--floating.tl-theme__light .chat-answer-controls {
 	display: flex;
-	flex: none;
-	justify-content: flex-end;
+	align-items: center;
 	gap: 2px;
-	padding: 6px 8px 0;
 }
 
-.chat-panel--floating.tl-theme__light .chat-answer .chat-answer-controls + .chat-history {
-	padding-top: 0;
+.chat-panel--floating.tl-theme__light .chat-answer-header + .chat-history {
+	padding-top: 4px;
+}
+
+/* While the agent thinks, the answer shows the same breathing dots as the board. */
+.chat-panel.tl-theme__light .chat-history-thinking {
+	margin: 0;
+	padding: 8px 0 2px;
 }
 
 /* While the agent draws, the card is one quiet line: three dots and the step. */
@@ -585,6 +666,25 @@
 	color: var(--tl-color-text-3);
 	font-size: 13px;
 	line-height: 18px;
+}
+
+/* "See more": a quiet text button beside close, for the whole conversation. */
+.chat-panel--floating.tl-theme__light .chat-answer-more {
+	height: 28px;
+	padding: 0 8px;
+	border: none;
+	border-radius: 8px;
+	background: none;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--tl-color-text-3);
+	cursor: pointer;
+	transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+.chat-panel--floating.tl-theme__light .chat-answer-more:hover {
+	background-color: var(--paper-hover);
+	color: var(--paper-ink);
 }
 
 .chat-panel--floating.tl-theme__light .chat-answer-status-text {
@@ -627,7 +727,7 @@
 }
 
 /* The composer grows out of the ball's corner, and the ball settles back into it. */
-.chat-panel--floating.tl-theme__light:not(.chat-panel--ball) .chat-input form {
+.chat-panel--floating.tl-theme__light .chat-sheet {
 	transform-origin: bottom right;
 	animation: composer-open 200ms var(--ease-out);
 }
@@ -662,11 +762,19 @@
 	cursor: pointer;
 	transform-origin: bottom right;
 	animation: paper-pop 180ms var(--ease-out);
-	transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out);
+	transition:
+		transform 160ms var(--ease-out),
+		box-shadow 160ms var(--ease-out),
+		background-color 160ms var(--ease-out);
 }
 
+/* Hover lifts the ball a pixel, like a sheet picked up off the desk. */
 .chat-panel--ball.tl-theme__light .chat-ball:hover {
-	background-color: var(--paper-hover);
+	transform: translateY(-1px);
+	background-color: #fffffd;
+	box-shadow:
+		0 2px 4px rgba(60, 45, 20, 0.1),
+		0 12px 24px rgba(60, 45, 20, 0.14);
 }
 
 .chat-panel--ball.tl-theme__light .chat-ball:active {
@@ -1179,7 +1287,7 @@
 	.mark-composer,
 	.mark-chip,
 	.chat-panel--floating.tl-theme__light .chat-answer,
-	.chat-panel--floating.tl-theme__light:not(.chat-panel--ball) .chat-input form,
+	.chat-panel--floating.tl-theme__light .chat-sheet,
 	.chat-panel--ball.tl-theme__light .chat-ball,
 	.thread-note--fresh,
 	.thread-pin--fresh,
@@ -1222,7 +1330,7 @@
 .chat-panel :is(button, select, a):focus-visible,
 .thread-note-controls button:focus-visible,
 .thread-pin:focus-visible,
-.mark-composer :is(button, input):focus-visible {
+.mark-composer button:focus-visible {
 	outline: 2px solid var(--paper-accent);
 	outline-offset: 2px;
 }
@@ -1240,11 +1348,4 @@
 
 .chat-panel.tl-theme__light .chat-model-select select:focus-visible {
 	outline: none;
-}
-
-/* The composer sheet shows it has the cursor with a soft forest halo. An
- * outline follows the sheet's corners and leaves its shadow alone. */
-.chat-panel.tl-theme__light .chat-input form:focus-within {
-	outline: 3px solid rgba(52, 76, 65, 0.14);
-	outline-offset: 0;
 }

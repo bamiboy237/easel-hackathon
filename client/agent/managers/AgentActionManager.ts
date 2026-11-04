@@ -21,6 +21,10 @@ export const PROTECTED_FLASH_MS = 1600
 export interface AgentWork {
 	bounds: BoxModel
 	step: string
+	/** The shapes the agent has changed in this request so far. */
+	shapeIds: string[]
+	/** Of those, the ones it created. */
+	createdIds: string[]
 }
 
 /** How long a change ghost fades on the board. */
@@ -109,6 +113,11 @@ export class AgentActionManager extends BaseAgentManager {
 		return this.$work.get()
 	}
 
+	/** The board work of the latest request, kept after it ends until the next one starts. */
+	getLastWork(): AgentWork | null {
+		return this.$work.get()
+	}
+
 	/** Remember the shapes an applied step changed as the agent's working place. */
 	private noteWork(action: Streaming<AgentAction>, changes: RecordsDiff<TLRecord>) {
 		const { editor } = this.agent
@@ -118,7 +127,11 @@ export class AgentActionManager extends BaseAgentManager {
 		const boxes = ids.map((id) => editor.getShapePageBounds(id)).filter((b): b is Box => !!b)
 		if (boxes.length === 0) return
 		const intent = 'intent' in action && typeof action.intent === 'string' ? action.intent.trim() : ''
-		this.$work.set({ bounds: Box.Common(boxes).toJson(), step: intent || this.$work.get()?.step || '' })
+		const previous = this.$work.get()
+		const shapeIds = [...new Set([...(previous?.shapeIds ?? []), ...ids])]
+		const created = Object.keys(changes.added).filter((id) => id.startsWith('shape:'))
+		const createdIds = [...new Set([...(previous?.createdIds ?? []), ...created])]
+		this.$work.set({ bounds: Box.Common(boxes).toJson(), step: intent || previous?.step || '', shapeIds, createdIds })
 	}
 
 	/** The protected shapes the board outlines briefly after a protected rejection. */

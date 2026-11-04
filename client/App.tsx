@@ -58,6 +58,12 @@ const ICON_NAMES = [
 ]
 const assetUrls = { icons: Object.fromEntries(ICON_NAMES.map((name) => [name, `/icons/${name}.svg`])) }
 const overrides: TLUiOverrides = {
+	// Easel is paper and ink; there is no dark board yet, so tldraw's stock dark
+	// mode (Ctrl+/ and the menu item) is left out rather than shown half styled.
+	actions: (_editor, actions) => {
+		const { ['toggle-dark-mode']: _darkMode, ...rest } = actions
+		return rest
+	},
 	tools: (editor, tools) => {
 		return {
 			...tools,
@@ -132,6 +138,8 @@ function App() {
 						overrides={overrides}
 						components={components}
 						themes={themes}
+						// Paper only, whatever was saved before dark mode was taken out.
+						colorScheme="light"
 						assetUrls={assetUrls}
 					>
 						<TldrawAgentAppProvider onMount={setApp} onUnmount={handleUnmount} />

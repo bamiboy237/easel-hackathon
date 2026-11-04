@@ -1,7 +1,7 @@
 import { atom, b64Vecs, Box, BoxModel, createShapeId, Editor, renderPlaintextFromRichText, TLRichText, TLShapeId, VecModel } from 'tldraw'
 import { convertTldrawShapeToFocusedShape } from '../../../shared/format/convertTldrawShapeToFocusedShape'
 import { findClearSpaceBeside, findNoteSpot } from '../findClearSpace'
-import { classifyStroke, findMarkTargets, MARK_INTENTS, MarkKind } from '../marks'
+import { classifyStroke, findMarkTargets, MARK_INTENTS, MARK_LABELS, MarkKind } from '../marks'
 import { VoiceListener } from '../voice'
 import { ANNOTATION_BINDING, bindAnnotation, followDescendants } from '../../shapes/AnnotationBindingUtil'
 import { markThreadFresh, measureThreadHeight, PIN_SIZE, THREAD_TYPE, THREAD_WIDTH, ThreadEntry, ThreadShape } from '../../shapes/ThreadShapeUtil'
@@ -365,7 +365,9 @@ export class AgentMarkManager extends BaseAgentManager {
 		const draft = this.$draft.get()
 		if (!draft) return
 		const { editor } = this.agent
-		const question = text.trim() || MARK_INTENTS[draft.kind]
+		// The thread shows the question in the user's words; the agent gets what the mark means.
+		const question = text.trim() || MARK_LABELS[draft.kind]
+		const intent = text.trim() || MARK_INTENTS[draft.kind]
 		this.$draft.set(null)
 
 		const targetIds = draft.targetIds.filter((id) => editor.getShape(id))
@@ -415,7 +417,7 @@ export class AgentMarkManager extends BaseAgentManager {
 				bindAnnotation(editor, draft.shapeId, targetIds)
 			}
 		})
-		this.send({ ...draft, targetIds, text: question, threadId, history: [] }, text.trim() || `(${draft.kind}) ${question}`)
+		this.send({ ...draft, targetIds, text: intent, threadId, history: [] }, question)
 	}
 
 	/** What a thread is about on the board: its mark, or its targets, or the thread itself. */
