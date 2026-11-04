@@ -36,6 +36,8 @@ export const MarkPartUtil = registerPromptPartUtil(
 					bounds: helpers.roundBox(helpers.applyOffsetToBox(mark.bounds)),
 					question: mark.text,
 					image,
+					thread: convertTldrawIdToSimpleId(mark.threadId),
+					history: mark.history,
 				},
 			}
 		}

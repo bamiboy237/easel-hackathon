@@ -119,6 +119,9 @@ export interface MarkPart {
 		question: string
 		/** A crop of the marked region with the mark drawn on it, as a data URL, or '' when empty. */
 		image: string
+		/** The thread to answer in, and what was said in it before this question. */
+		thread: string
+		history: { author: 'user' | 'agent'; text: string }[]
 	} | null
 }
 
@@ -570,6 +573,14 @@ export const MarkPartDefinition: PromptPartDefinition<MarkPart> = {
 		const lines = [
 			`The user ${MARK_KINDS[mark.kind]} part of the board at ${JSON.stringify(mark.bounds)} to ask: "${mark.question}" ${targets} Answer about exactly what the mark points at. Read text, numbers, or details from the image of the region when the shapes do not hold them, such as in a photo or a sketch.`,
 		]
+		if (mark.history.length > 0) {
+			lines.push(
+				`This is a follow-up in the same thread. Earlier in it:\n${mark.history.map((e) => `${e.author === 'user' ? 'User' : 'You'}: ${e.text}`).join('\n')}`
+			)
+		}
+		lines.push(
+			`Answer in the thread with \`reply_in_thread\`, thread "${mark.thread}". Keep it short: one to four plain sentences. Draw on the board only when the answer needs a picture.`
+		)
 		if (mark.image) lines.push('Here is the marked region, with the user\'s mark drawn on it.', mark.image)
 		return lines
 	},

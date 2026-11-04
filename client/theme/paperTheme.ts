@@ -12,8 +12,8 @@ const SHEET = '#FFFEFB'
 const INK = '#1F1E1B'
 const RULE = '#E2DED4'
 export const CLAY = '#C2603E'
-// Blue-black fountain-pen ink for selection and focus
-const ACCENT = '#2E4A6E'
+// A muted forest green, the app's one accent, shared with the chat panel.
+const ACCENT = '#344C41'
 
 /**
  * Ink tones for each palette color. Hues keep their usual meaning, so an agent
@@ -95,7 +95,7 @@ const paperLight: TLThemeColors = {
 	noteBorder: RULE,
 	snap: ACCENT,
 	selectionStroke: ACCENT,
-	selectionFill: 'rgba(46, 74, 110, 0.12)',
+	selectionFill: 'rgba(52, 76, 65, 0.12)',
 	brushFill: 'rgba(31, 30, 27, 0.05)',
 	brushStroke: 'rgba(31, 30, 27, 0.25)',
 	selectedContrast: SHEET,

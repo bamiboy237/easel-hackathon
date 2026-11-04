@@ -12,6 +12,10 @@ import {
 	TldrawUiContextProvider,
 	TLShape,
 } from 'tldraw'
+import { ThreadShapeUtil } from '../../shapes/ThreadShapeUtil'
+
+/** The default shapes plus the app's own, so previews of a change can show threads. */
+const VIEWER_SHAPE_UTILS = [...defaultShapeUtils, ThreadShapeUtil]
 
 export function TldrawViewer({
 	shapes,
@@ -68,7 +72,7 @@ export function TldrawViewer({
 					autoFocus={false}
 					components={components ?? {}}
 					onMount={setEditor}
-					shapeUtils={defaultShapeUtils}
+					shapeUtils={VIEWER_SHAPE_UTILS}
 					bindingUtils={defaultBindingUtils}
 					tools={tools}
 					options={defaultOptions}

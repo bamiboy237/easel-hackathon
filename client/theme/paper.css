@@ -10,13 +10,14 @@
 	--paper-pressed: #e7e4dc;
 	--paper-rule: #e6e2d9;
 	--paper-ink: #1f1e1b;
-	--paper-accent: #2e4a6e;
+	/* A muted forest green: the one accent, for selection, focus, and the user's own words. */
+	--paper-accent: #344c41;
 
 	/* Motion, after Emil Kowalski's rules: strong ease-out, short, and only transform and opacity. */
 	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
 	--tl-color-background: var(--paper);
-	--tl-color-selection-fill: rgba(46, 74, 110, 0.12);
+	--tl-color-selection-fill: rgba(52, 76, 65, 0.12);
 	--tl-color-selection-stroke: var(--paper-accent);
 	--tl-color-grid: hsl(38, 14%, 62%);
 
@@ -59,11 +60,20 @@
 }
 
 /*
- * A faint fiber grain, like good writing paper. It stays fixed to the screen,
- * so it reads as the surface rather than as marks on the board.
+ * The board is ivory writing paper, from the Figma "Ivory writing paper" frame:
+ * a warm stock tone that shifts slightly across the sheet, with three layers
+ * of grain on top: a fine tooth, faint horizontal fibers, and a soft cloudy
+ * formation. It stays fixed to the screen, so it reads as the surface rather
+ * than as marks on the board.
  */
 .tl-theme__light .tl-background {
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.38 0 0 0 0 0.36 0 0 0 0 0.31 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E");
+	background-color: #f5f1e7;
+	background-image:
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.36 0 0 0 0 0.32 0 0 0 0 0.25 0 0 0 0.055 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url%28%23g%29'/%3E%3C/svg%3E"),
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0156 0.3125' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.4 0 0 0 0 0.36 0 0 0 0 0.28 0 0 0 0.022 0'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url%28%23g%29'/%3E%3C/svg%3E"),
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1024' height='1024'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0078' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.38 0 0 0 0 0.3 0 0 0 0.03 0'/%3E%3C/filter%3E%3Crect width='1024' height='1024' filter='url%28%23g%29'/%3E%3C/svg%3E"),
+		linear-gradient(90deg, #f7f4eb 0%, #f5f1e7 50%, #f3efe4 100%);
+	background-blend-mode: multiply, multiply, multiply, normal;
 }
 
 /* Quiet frames: a serif title like a section heading, with no chip behind it. */
@@ -87,9 +97,24 @@
 	color: var(--paper-ink);
 }
 
+/*
+ * The chat panel is warm stone, like a desk under the ivory board: smooth, with
+ * no grain, so small text stays crisp. Ink text, taupe for secondary text,
+ * pale stone rules, and an off-white composer.
+ */
 .chat-panel.tl-theme__light {
-	--tl-color-text-2: #8a8476;
-	--tl-color-primary-hover: #22384f;
+	--paper-panel: #e7e3da;
+	--paper-card: #faf8f2;
+	--paper-rule: #d7d1c5;
+	--paper-ink: #302f2a;
+	--paper-hover: #dfdace;
+	--paper-pressed: #d7d1c5;
+	--tl-color-text: #302f2a;
+	--tl-color-text-0: #302f2a;
+	--tl-color-text-1: #302f2a;
+	--tl-color-text-2: #716c62;
+	--tl-color-text-3: #716c62;
+	--tl-color-primary-hover: #2a3f36;
 	background-color: var(--paper-panel);
 	border-left: 1px solid var(--paper-rule);
 	font-size: 13px;
@@ -139,7 +164,7 @@
 	color: var(--tl-color-text-3);
 }
 
-/* The user's prompt reads like a margin note in blue-black ink; the agent's reply reads as plain text. */
+/* The user's prompt reads like a margin note in forest-green ink; the agent's reply reads as plain text. */
 .chat-panel.tl-theme__light .chat-history-prompt-container {
 	background-color: var(--paper-panel);
 }
@@ -363,14 +388,16 @@
 .chat-panel.tl-theme__light .chat-input form {
 	background-color: var(--paper-card);
 	border: 1px solid var(--paper-rule);
-	border-radius: 16px;
-	box-shadow: 0px 2px 8px rgba(60, 45, 20, 0.06);
+	border-radius: 14px;
+	box-shadow: 0px 1px 2px rgba(60, 45, 20, 0.05);
 }
 
 .chat-panel.tl-theme__light .chat-input-submit {
 	width: 28px;
 	height: 28px;
 	font-size: 13px;
+	background: var(--paper-accent);
+	color: #f5f1e7;
 	box-shadow: none;
 	transition: transform 160ms var(--ease-out);
 }
@@ -391,6 +418,87 @@
 	color: inherit;
 	font: inherit;
 	cursor: pointer;
+}
+
+/*
+ * A thread on the board: the same ruled sticky note as the question card,
+ * holding the question in red pencil and the agent's answer in ink. It sits
+ * straight on the board, so text stays crisp at every zoom.
+ */
+.thread-note-container {
+	overflow: visible;
+	pointer-events: all;
+}
+
+.thread-note {
+	box-sizing: border-box;
+	padding: 14px 14px 14px 30px;
+	border-radius: 2px 2px 3px 3px;
+	background:
+		linear-gradient(90deg, transparent 21px, rgba(174, 59, 44, 0.45) 21px, rgba(174, 59, 44, 0.45) 22px, transparent 22px),
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='24'%3E%3Cline x1='0' y1='23.5' x2='4' y2='23.5' stroke='%23c8b678' stroke-width='1'/%3E%3C/svg%3E") 0 14px repeat,
+		linear-gradient(180deg, #fcf3bd 0%, #fcf3bd 55%, #f6e7a0 100%);
+	box-shadow:
+		0 1px 1px rgba(60, 45, 20, 0.08),
+		0 12px 18px -10px rgba(60, 45, 20, 0.3),
+		0 2px 10px rgba(60, 45, 20, 0.07);
+	animation: sticky-place 200ms var(--ease-out);
+}
+
+.thread-note--detached {
+	opacity: 0.75;
+}
+
+.thread-entry {
+	margin: 0;
+	font-family: 'Source Serif 4 Variable', Georgia, serif;
+	line-height: 24px;
+	overflow-wrap: break-word;
+}
+
+.thread-entry--user {
+	font-size: 14px;
+	font-style: italic;
+	color: #ae3b2c;
+}
+
+.thread-entry--agent {
+	font-size: 15px;
+	color: #3b3320;
+}
+
+/* A slip below the note: the follow-up line when selected, or that the agent is thinking. */
+.thread-footer {
+	box-sizing: border-box;
+	margin: 6px 0 0 8px;
+	width: calc(100% - 16px);
+	padding: 4px 10px;
+	border-radius: 3px;
+	background-color: #fbf1b6;
+	box-shadow: 0 1px 1px rgba(60, 45, 20, 0.08), 0 4px 10px rgba(60, 45, 20, 0.12);
+	font-family: 'Source Serif 4 Variable', Georgia, serif;
+	font-size: 14px;
+	animation: paper-settle 160ms var(--ease-out);
+}
+
+.thread-footer--thinking {
+	font-style: italic;
+	color: #9a8a58;
+}
+
+.thread-footer input {
+	width: 100%;
+	border: none;
+	outline: none;
+	background: none;
+	font: inherit;
+	color: #3b3320;
+	caret-color: #ae3b2c;
+}
+
+.thread-footer input::placeholder {
+	font-style: italic;
+	color: #9a8a58;
 }
 
 /* After a pen circle, a tiny sticky tab offers to ask about it. */
@@ -577,6 +685,8 @@
 	.chat-panel.tl-theme__light .prompt-tag,
 	.mark-composer,
 	.mark-chip,
+	.thread-note,
+	.thread-footer,
 	.go-to-agent {
 		animation-name: paper-fade-in;
 	}

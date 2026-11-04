@@ -14,6 +14,7 @@ import { LabelActionUtil } from '../actions/LabelActionUtil'
 import { MapActionUtil } from '../actions/MapActionUtil'
 import { AskActionUtil } from '../actions/AskActionUtil'
 import { AsideActionUtil } from '../actions/AsideActionUtil'
+import { ReplyInThreadActionUtil } from '../actions/ReplyInThreadActionUtil'
 import { ResumeActionUtil } from '../actions/ResumeActionUtil'
 import { MessageActionUtil } from '../actions/MessageActionUtil'
 import { MoveActionUtil } from '../actions/MoveActionUtil'
@@ -145,6 +146,7 @@ export const AGENT_MODE_DEFINITIONS = [
 			MessageActionUtil.type,
 			AskActionUtil.type,
 			AsideActionUtil.type,
+			ReplyInThreadActionUtil.type,
 			ResumeActionUtil.type,
 
 			// Planning

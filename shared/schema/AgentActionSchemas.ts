@@ -198,6 +198,21 @@ export const AsideAction = z
 
 export type AsideAction = z.infer<typeof AsideAction>
 
+// Reply in thread Action
+export const ReplyInThreadAction = z
+	.object({
+		_type: z.literal('reply_in_thread'),
+		thread: z.string(),
+		text: z.string(),
+	})
+	.meta({
+		title: 'Reply in thread',
+		description:
+			'The AI answers a question the user asked by marking the board. The answer goes in the thread beside the mark, a sticky note the user reads in place. Thread: the thread ID from the mark. Text: the answer in one to four plain sentences; a short formula is fine. Draw on the board only when the answer needs a picture, then still reply in the thread and say what you drew. Do not repeat the answer in a chat message.',
+	})
+
+export type ReplyInThreadAction = z.infer<typeof ReplyInThreadAction>
+
 // Resume Action
 export const ResumeAction = z
 	.object({

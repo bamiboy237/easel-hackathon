@@ -1,4 +1,4 @@
-import { Box, Editor } from 'tldraw'
+import { Box, Editor, TLShapeId } from 'tldraw'
 
 /** Space kept between new work and the shapes around it. */
 const MARGIN = 40
@@ -56,4 +56,45 @@ export function findClearSpaceInView(editor: Editor, size: { w: number; h: numbe
 		}
 	}
 	return null
+}
+
+/**
+ * A spot for a small note tied to a subject, such as a thread beside its mark:
+ * just to the right of it, moving down a line at a time, then further right,
+ * until it overlaps nothing. Notes sit closer than new work, so this uses a small margin.
+ */
+export function findNoteSpot(
+	editor: Editor,
+	subject: Box,
+	size: { w: number; h: number },
+	ignore: TLShapeId[] = []
+): Box | null {
+	const ignored = new Set(ignore)
+	const obstacles = editor
+		.getCurrentPageShapes()
+		.filter((shape) => shape.parentId === editor.getCurrentPageId() && !ignored.has(shape.id))
+		.map((shape) => editor.getShapePageBounds(shape))
+		.filter((bounds): bounds is Box => !!bounds && !subject.contains(bounds))
+	const margin = 8
+	// Down a line at a time first, then a step further right, so the note stays near.
+	for (let right = 0; right <= 4; right++) {
+		for (let down = 0; down <= 6; down++) {
+			const candidate = new Box(subject.maxX + 24 + right * 160, subject.y + down * 24, size.w, size.h)
+			const padded = candidate.clone().expandBy(margin)
+			if (obstacles.every((obstacle) => !padded.collides(obstacle))) return candidate
+		}
+	}
+	return null
+}
+
+/** True when a box overlaps a top-level shape other than the ones ignored. */
+export function overlapsShapes(editor: Editor, box: Box, ignore: TLShapeId[] = []): boolean {
+	const ignored = new Set(ignore)
+	return editor
+		.getCurrentPageShapes()
+		.filter((shape) => shape.parentId === editor.getCurrentPageId() && !ignored.has(shape.id))
+		.some((shape) => {
+			const bounds = editor.getShapePageBounds(shape)
+			return !!bounds && box.collides(bounds)
+		})
 }

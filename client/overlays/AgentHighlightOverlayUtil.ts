@@ -81,8 +81,13 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 			const activeRequest = agent.requests.getActiveRequest()
 			const activeContextItems = activeRequest?.contextItems ?? []
 
+			// A question about a mark needs no "looking at" outline: the pencil mark and
+			// its thread already show what the agent is working on.
+			const aboutMark = !!agent.marks.getActive()
+
 			if (
 				activeRequest?.bounds &&
+				!aboutMark &&
 				!this.isEquivalentToPendingContextArea(activeRequest.bounds, activeContextItems)
 			) {
 				overlays.push({
@@ -131,7 +136,7 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 
 			const selectedContextItems = agent.requests.isGenerating() ? [] : agent.context.getItems()
 			this.addContextItemOverlays(overlays, agent.id, 'selected', selectedContextItems, false)
-			this.addContextItemOverlays(overlays, agent.id, 'active', activeContextItems, true)
+			if (!aboutMark) this.addContextItemOverlays(overlays, agent.id, 'active', activeContextItems, true)
 		}
 
 		return overlays

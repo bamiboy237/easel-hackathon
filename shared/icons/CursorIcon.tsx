@@ -7,7 +7,7 @@ export function CursorIcon() {
 			viewBox="0 0 20 24"
 			fill="none"
 			stroke="currentColor"
-			strokeWidth="2"
+			strokeWidth="1.5"
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			className="chat-icon"

@@ -1,6 +1,6 @@
 import { FormEventHandler, useState } from 'react'
 import { useValue } from 'tldraw'
-import { AtIcon } from '../../shared/icons/AtIcon'
+import { MarkIcon } from '../../shared/icons/MarkIcon'
 import { BrainIcon } from '../../shared/icons/BrainIcon'
 import { ChevronDownIcon } from '../../shared/icons/ChevronDownIcon'
 import { AGENT_MODEL_DEFINITIONS, AgentModelName } from '../../shared/models'
@@ -55,7 +55,7 @@ export function ChatInput({
 						}}
 					>
 						<span className="chat-context-select-label">
-							<AtIcon /> Mark
+							<MarkIcon /> Mark
 						</span>
 					</button>
 					{selectedShapes.length > 0 && <SelectionTag onClick={() => editor.selectNone()} />}
