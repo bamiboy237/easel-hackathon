@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
 	createShapePropsMigrationIds,
 	createShapePropsMigrationSequence,
@@ -66,6 +66,34 @@ const threadMigrations = createShapePropsMigrationSequence({
 		},
 	],
 })
+
+/**
+ * Threads that just landed, folded, or opened, so they settle in once. The
+ * canvas hides a shape that scrolls out of view with display: none, which
+ * restarts a CSS animation when it shows again, so the class that animates
+ * comes off once the view has settled.
+ */
+const freshViews = new Map<string, ReturnType<typeof setTimeout>>()
+/** A little longer than the settle animations. */
+const SETTLE_MS = 400
+
+/** Let a thread's next view settle in: a new note, a pin, or a note opened from its pin. */
+export function markThreadFresh(id: string) {
+	const previous = freshViews.get(id)
+	if (previous) clearTimeout(previous)
+	freshViews.set(id, setTimeout(() => freshViews.delete(id), 1000))
+}
+
+/** Whether a view is settling in: true from its mount, if it is fresh, until it has settled. */
+function useFresh(id: string) {
+	const [fresh, setFresh] = useState(() => freshViews.has(id))
+	useEffect(() => {
+		if (!fresh) return
+		const timer = setTimeout(() => setFresh(false), SETTLE_MS)
+		return () => clearTimeout(timer)
+	}, [fresh])
+	return fresh
+}
 
 /** A folded thread's pin, in page units. */
 export const PIN_SIZE = 26
@@ -155,10 +183,11 @@ function ThreadPin({ shape }: { shape: ThreadShape }) {
 	const editor = useEditor()
 	const questions = shape.props.entries.filter((entry) => entry.author === 'user').length
 	const first = shape.props.entries.find((entry) => entry.author === 'user')?.text ?? ''
+	const fresh = useFresh(shape.id)
 	return (
 		<HTMLContainer className="thread-note-container">
 			<button
-				className={'thread-pin' + (shape.props.resolved ? ' thread-pin--resolved' : '')}
+				className={'thread-pin' + (shape.props.resolved ? ' thread-pin--resolved' : '') + (fresh ? ' thread-pin--fresh' : '')}
 				style={{ width: shape.props.w, height: shape.props.h }}
 				title={first}
 				aria-label={(shape.props.resolved ? 'Resolved: ' : 'Folded question: ') + first}
@@ -178,6 +207,7 @@ function ThreadNote({ shape }: { shape: ThreadShape }) {
 
 function OpenThreadNote({ shape }: { shape: ThreadShape }) {
 	const editor = useEditor()
+	const fresh = useFresh(shape.id)
 	const isSelected = useValue('thread selected', () => editor.getOnlySelectedShapeId() === shape.id, [editor, shape.id])
 	// The thread is busy while the agent answers in it. A follow-up then would be
 	// lost when the answer's preview is rolled back, so it waits.
@@ -203,7 +233,7 @@ function OpenThreadNote({ shape }: { shape: ThreadShape }) {
 	return (
 		<HTMLContainer className="thread-note-container">
 			<div
-				className={'thread-note' + (detached ? ' thread-note--detached' : '')}
+				className={'thread-note' + (detached ? ' thread-note--detached' : '') + (fresh ? ' thread-note--fresh' : '')}
 				style={{ width: w, height: h }}
 			>
 				{!busy && (

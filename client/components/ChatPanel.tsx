@@ -167,6 +167,21 @@ export function ChatPanel() {
 	}, [agent])
 
 	const isEmpty = useValue('chat is empty', () => agent.chat.getHistory().length === 0, [agent])
+
+	// Escape steps the pane back one state: the answer closes, then an empty
+	// composer folds into the ball. With a draft, the draft stays and the board
+	// gets the keyboard back.
+	const escapeComposer = () => {
+		if (pane === 'responding') setPane('quiet')
+		else if (pane === 'quiet' && draft === '') {
+			setPane('ball')
+			agent.editor.focus()
+		}
+		else {
+			inputRef.current?.blur()
+			agent.editor.focus()
+		}
+	}
 	// While the agent changes the board, the answer card folds to one line, so it
 	// never hides the work. The full answer opens when the agent is done.
 	const work = useValue('pane agent work', () => agent.actions.getWork(), [agent])
@@ -179,7 +194,7 @@ export function ChatPanel() {
 				inputRef={inputRef}
 				value={draft}
 				onChange={setDraft}
-				onEscape={pane === 'responding' ? () => setPane('quiet') : undefined}
+				onEscape={escapeComposer}
 			/>
 		</div>
 	)

@@ -4,7 +4,7 @@ import { findClearSpaceBeside, findNoteSpot } from '../findClearSpace'
 import { classifyStroke, findMarkTargets, MARK_INTENTS, MarkKind } from '../marks'
 import { VoiceListener } from '../voice'
 import { ANNOTATION_BINDING, bindAnnotation, followDescendants } from '../../shapes/AnnotationBindingUtil'
-import { measureThreadHeight, PIN_SIZE, THREAD_TYPE, THREAD_WIDTH, ThreadEntry, ThreadShape } from '../../shapes/ThreadShapeUtil'
+import { markThreadFresh, measureThreadHeight, PIN_SIZE, THREAD_TYPE, THREAD_WIDTH, ThreadEntry, ThreadShape } from '../../shapes/ThreadShapeUtil'
 import { getBoardSettings } from '../boardSettings'
 import { BaseAgentManager } from './BaseAgentManager'
 
@@ -89,7 +89,8 @@ export class AgentMarkManager extends BaseAgentManager {
 				if ((prev as ThreadShape).props.entries === thread.props.entries) return next
 				const h = measureThreadHeight(editor, thread.props.entries)
 				if (!thread.props.folded) return { ...thread, props: { ...thread.props, h } }
-				// The note opens where it would if the user clicked its pin.
+				// The note opens where it would if the user clicked its pin, and settles in.
+				markThreadFresh(thread.id)
 				const spot = this.getNoteSpot(thread, h)
 				const local = editor.getPointInParentSpace(thread.id, { x: spot.x, y: spot.y })
 				return { ...thread, x: local.x, y: local.y, props: { ...thread.props, folded: false, w: THREAD_WIDTH, h } }
@@ -391,6 +392,7 @@ export class AgentMarkManager extends BaseAgentManager {
 			(beside && view.contains(beside) ? beside : null) ??
 			new Box(markBounds.maxX + 24, markBounds.y, THREAD_WIDTH, h)
 		const threadId = createShapeId(`thread-${draft.id}`)
+		markThreadFresh(threadId)
 		this.agent.commands.execute('user', 'thread', () => {
 			editor.createShape<ThreadShape>({
 				id: threadId,
@@ -447,6 +449,7 @@ export class AgentMarkManager extends BaseAgentManager {
 		if (!thread || thread.type !== THREAD_TYPE) return
 		const resolved = resolve || thread.props.resolved
 		editor.markHistoryStoppingPoint('thread-fold')
+		markThreadFresh(threadId)
 		this.agent.commands.execute('user', resolve ? 'thread-resolve' : 'thread-fold', () => {
 			this.placeThread(thread, this.getPinSpot(thread), { folded: true, resolved, w: PIN_SIZE, h: PIN_SIZE })
 			editor.selectNone()
@@ -478,6 +481,7 @@ export class AgentMarkManager extends BaseAgentManager {
 		const h = measureThreadHeight(editor, thread.props.entries)
 		const spot = this.getNoteSpot(thread, h)
 		editor.markHistoryStoppingPoint('thread-open')
+		markThreadFresh(threadId)
 		this.agent.commands.execute('user', 'thread-open', () => {
 			this.placeThread(thread, { x: spot.x, y: spot.y }, { folded: false, w: THREAD_WIDTH, h })
 			editor.select(thread.id)

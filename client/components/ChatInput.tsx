@@ -75,11 +75,11 @@ export function ChatInput({
 				/>
 				<span className="chat-actions">
 					<label className="chat-model-select" title="Model">
-						<span>{modelName}</span>
+						<span>{formatModelName(modelName)}</span>
 						<select value={modelName} onChange={(e) => agent.modelName.setModelName(e.target.value as AgentModelName)}>
 							{Object.values(AGENT_MODEL_DEFINITIONS).map((model) => (
 								<option key={model.name} value={model.name}>
-									{model.name}
+									{formatModelName(model.name)}
 								</option>
 							))}
 						</select>
@@ -104,4 +104,18 @@ function StopGlyph() {
 			<rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" />
 		</svg>
 	)
+}
+
+/**
+ * A model's ID as words: "muse-wonder-1.0" reads "Muse Wonder 1.0", "gpt-6.1-sol"
+ * reads "GPT 6.1 Sol", and "claude-haiku-4-5" reads "Claude Haiku 4.5".
+ */
+export function formatModelName(name: string): string {
+	const words: string[] = []
+	for (const part of name.split('-')) {
+		const previous = words[words.length - 1]
+		if (/^\d+$/.test(part) && previous && /^[\d.]+$/.test(previous)) words[words.length - 1] = `${previous}.${part}`
+		else words.push(part === 'gpt' ? 'GPT' : part.charAt(0).toUpperCase() + part.slice(1))
+	}
+	return words.join(' ')
 }

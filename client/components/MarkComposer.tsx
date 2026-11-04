@@ -95,7 +95,7 @@ export function MarkComposer() {
 					}}
 				/>
 			</form>
-			<div className="mark-composer-hint">↵ ask · esc drop · click shapes to change</div>
+			<div className="mark-composer-hint">Enter to ask · Esc to cancel · Click shapes to change</div>
 		</div>
 	)
 }
