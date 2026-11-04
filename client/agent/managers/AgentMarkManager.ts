@@ -356,8 +356,8 @@ export class AgentMarkManager extends BaseAgentManager {
 		const entries: ThreadEntry[] = [{ author: 'user', text: question }]
 		const h = measureThreadHeight(editor, entries)
 		// Right beside the mark, where the question was typed. Answers grow the note
-		// downward, so leave room for a few lines.
-		const room = { w: THREAD_WIDTH, h: h + 96 }
+		// downward, so leave room for a typical answer of about eight lines.
+		const room = { w: THREAD_WIDTH, h: h + 8 * 24 }
 		const view = editor.getViewportPageBounds()
 		const beside = findClearSpaceBeside(editor, markBounds, room)
 		const spot =
