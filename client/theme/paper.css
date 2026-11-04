@@ -595,6 +595,16 @@
 	border-radius: 0;
 }
 
+/* Inside the sheet, the todo list is the top of the card, not a tab lifted above it. */
+.chat-panel--floating.tl-theme__light .chat-sheet .todo-list {
+	margin: 0;
+	border: none;
+	border-bottom: 1px solid var(--paper-rule);
+	border-radius: 0;
+	box-shadow: none;
+	transform: none;
+}
+
 .chat-panel--floating.tl-theme__light .chat-sheet--answering .chat-input {
 	border-top: 1px solid var(--paper-rule);
 }

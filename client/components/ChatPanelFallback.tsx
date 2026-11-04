@@ -1,7 +1,7 @@
 export function ChatPanelFallback() {
 	return (
 		<div className="chat-fallback">
-			<p>Error loading chat history</p>
+			<p>Couldn't load the chat. Reload to try again.</p>
 			<button
 				onClick={() => {
 					localStorage.clear()

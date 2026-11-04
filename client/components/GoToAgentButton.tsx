@@ -101,7 +101,7 @@ export function GoToAgentButton({ agent }: { agent: TldrawAgent }) {
 						</svg>
 					}
 				/>
-				<TldrawUiButtonLabel>Go to {agent.id}</TldrawUiButtonLabel>
+				<TldrawUiButtonLabel>Show Easel's work</TldrawUiButtonLabel>
 			</div>
 		</TldrawUiButton>
 	)

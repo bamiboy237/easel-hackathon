@@ -238,7 +238,7 @@ function OpenThreadNote({ shape }: { shape: ThreadShape }) {
 			>
 				{!busy && (
 					<div className="thread-note-controls" onPointerDown={(e) => e.stopPropagation()}>
-						<button title="Fold to a pin" aria-label="Fold to a pin" onClick={() => agentOf(editor)?.marks.foldThread(shape.id)}>
+						<button title="Fold" aria-label="Fold" onClick={() => agentOf(editor)?.marks.foldThread(shape.id)}>
 							<FoldGlyph />
 						</button>
 						<button title="Resolve" aria-label="Resolve" onClick={() => agentOf(editor)?.marks.resolveThread(shape.id)}>
@@ -260,7 +260,7 @@ function OpenThreadNote({ shape }: { shape: ThreadShape }) {
 						</span>
 					</p>
 				)}
-				{extra === 'detached' && <p className="thread-entry thread-entry--quiet">What this answered was deleted.</p>}
+				{extra === 'detached' && <p className="thread-entry thread-entry--quiet">Its shape was deleted</p>}
 				{extra === 'follow-up' && (
 					<form
 						className="thread-follow-up"
@@ -275,7 +275,7 @@ function OpenThreadNote({ shape }: { shape: ThreadShape }) {
 					>
 						<input
 							value={text}
-							placeholder="Ask a follow-up"
+							placeholder="Reply"
 							onChange={(e) => setText(e.target.value)}
 							onKeyDown={(e) => e.stopPropagation()}
 						/>

@@ -253,7 +253,9 @@ export function ChatPanel() {
 										<span />
 										<span />
 									</span>
-									<span className="chat-answer-status-text">{work.step || 'Working on the board'}</span>
+									<span className="chat-answer-status-text">
+										{work.frameName ? `Drawing in ${work.frameName}` : 'Drawing on the board'}
+									</span>
 								</p>
 							) : (
 								<ChatHistory agent={agent} latestOnly />
@@ -289,7 +291,7 @@ export function ChatPanel() {
 			</div>
 			{isEmpty ? (
 				<div className="chat-empty">
-					<p className="chat-empty-hint">Ask a question, or mark something on the board and ask about it.</p>
+					<p className="chat-empty-hint">Nothing yet. Press M to circle something and ask about it.</p>
 				</div>
 			) : (
 				<ChatHistory agent={agent} />

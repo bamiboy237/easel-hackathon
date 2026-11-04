@@ -77,7 +77,7 @@ export function ChatInput({
 					name="input"
 					autoComplete="off"
 					rows={1}
-					placeholder={hasOpenQuestion ? 'Pick a choice above, or type your answer' : 'Ask, or mark something on the board'}
+					placeholder={hasOpenQuestion ? 'Or type an answer' : 'Ask Easel'}
 					value={value}
 					onChange={(e) => onChange(e.currentTarget.value)}
 					onKeyDown={(e) => {

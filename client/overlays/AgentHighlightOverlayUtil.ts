@@ -66,13 +66,16 @@ interface AgentPointHighlightOverlay extends TLOverlay {
 	}
 }
 
-/** Where the agent is working: a quiet outline, three breathing dots, and the step. */
+/** Where the agent is working: a quiet outline, and its face with three breathing dots. */
 interface AgentWorkOverlay extends TLOverlay {
 	type: 'agent-highlight'
 	props: {
 		kind: 'work'
 		bounds: BoxModel
-		step: string
+		/** Where the face and dots sit: the frame the agent draws in, or its working place. */
+		anchor: BoxModel
+		/** True when the anchor is a frame, whose top edge is clear paper. */
+		inFrame: boolean
 		generating: boolean
 	}
 }
@@ -114,16 +117,24 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 			// While it works, the agent shows where on the board it is and what it is
 			// doing there, instead of outlining everything it can see.
 			const reviewing = activeContextItems.find((item) => item.type === 'area' && item.source === 'agent')
-			const work =
-				agent.actions.getWork() ??
-				(agent.requests.isGenerating() && reviewing?.type === 'area'
-					? { bounds: toBoxModel(reviewing.bounds), step: 'Reviewing' }
-					: null)
+			const current = agent.actions.getWork()
+			const work = current
+				? { bounds: current.bounds, frameId: current.frameId }
+				: agent.requests.isGenerating() && reviewing?.type === 'area'
+					? { bounds: toBoxModel(reviewing.bounds), frameId: null }
+					: null
 			if (work && !aboutMark) {
+				const frame = work.frameId ? this.editor.getShapePageBounds(work.frameId as TLShapeId) : undefined
 				overlays.push({
 					id: `agent-highlight:${agent.id}:work`,
 					type: 'agent-highlight',
-					props: { kind: 'work', bounds: work.bounds, step: work.step, generating: true },
+					props: {
+						kind: 'work',
+						bounds: work.bounds,
+						anchor: frame ? toBoxModel(frame) : work.bounds,
+						inFrame: !!frame,
+						generating: true,
+					},
 				})
 			}
 
@@ -180,7 +191,7 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 
 		for (const overlay of overlays) {
 			if (overlay.props.kind === 'work') {
-				this.renderWork(ctx, overlay.props.bounds, overlay.props.step, zoom)
+				this.renderWork(ctx, overlay.props.bounds, overlay.props.anchor, overlay.props.inFrame, zoom)
 				continue
 			}
 			const color = colors[overlay.props.color]
@@ -358,12 +369,19 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 	}
 
 	/**
-	 * The agent's working place: a forest hairline around what it is changing,
-	 * and above it three graphite dots that breathe in opacity only, followed by
-	 * the step in small type. Text and dots keep their size at any zoom.
+	 * The agent's working place: a forest hairline around everything it has
+	 * changed, and its face with three breathing dots at the top right corner of
+	 * the frame it draws in, above the frame's edge, so they never cover the
+	 * work. Without a frame they sit above the working place on a slip of
+	 * paper. The dots breathe in opacity only, and keep their size at any zoom.
 	 */
-	private renderWork(ctx: CanvasRenderingContext2D, pageBounds: BoxModel, step: string, zoom: number): void {
-		// The theme's accent and ink, so the slip follows the color mode.
+	private renderWork(
+		ctx: CanvasRenderingContext2D,
+		pageBounds: BoxModel,
+		pageAnchor: BoxModel,
+		inFrame: boolean,
+		zoom: number
+	): void {
 		const theme = this.editor.getCurrentTheme().colors[this.editor.getColorMode()]
 		const bounds = Box.From(pageBounds).expandBy(6 / zoom)
 		ctx.save()
@@ -375,44 +393,36 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 		ctx.stroke()
 		ctx.restore()
 
-		ctx.save()
-		ctx.translate(bounds.x, bounds.y)
-		ctx.scale(1 / zoom, 1 / zoom)
-		const baseline = -8
-		const elapsed = this.$animationElapsed.get()
-		const still = prefersReducedMotion()
-		const fontFamily = this.editor.getCurrentTheme().fonts.sans.fontFamily
-		ctx.font = `500 11px ${fontFamily}`
-		const label = step ? fitStep(ctx, step, Math.max(220, bounds.w * zoom - 30)) : ''
-		// A slip of board paper behind the dots and the step, so they read over ink.
-		// The agent's face leads the slip, then the dots, then the step.
+		const anchor = inFrame ? Box.From(pageAnchor) : bounds
 		const face = getAgentFace()
-		const lead = face ? FACE_SIZE + 4 : 0
-		const slipWidth = lead + 28 + (label ? ctx.measureText(label).width + 6 : 0)
-		ctx.fillStyle = theme.background
-		ctx.globalAlpha = 0.92
-		ctx.beginPath()
-		ctx.roundRect(-4, baseline - 15, slipWidth + 4, 21, 5)
-		ctx.fill()
+		const width = (face ? FACE_SIZE + 6 : 0) + 22
+		ctx.save()
+		ctx.translate(anchor.maxX, anchor.y)
+		ctx.scale(1 / zoom, 1 / zoom)
+		// Screen units from here, measured left from the anchor's top right corner.
+		const centerY = -14
+		if (!inFrame) {
+			ctx.fillStyle = theme.background
+			ctx.globalAlpha = 0.92
+			ctx.beginPath()
+			ctx.roundRect(-width - 6, centerY - 11, width + 6, 22, 11)
+			ctx.fill()
+		}
+		let x = -width
 		if (face) {
 			ctx.globalAlpha = 1
-			ctx.drawImage(face, 0, baseline - 5 - FACE_SIZE / 2, FACE_SIZE, FACE_SIZE)
-			ctx.translate(lead, 0)
+			ctx.drawImage(face, x, centerY - FACE_SIZE / 2, FACE_SIZE, FACE_SIZE)
+			x += FACE_SIZE + 6
 		}
+		const elapsed = this.$animationElapsed.get()
+		const still = prefersReducedMotion()
 		for (let i = 0; i < 3; i++) {
 			const phase = ((elapsed / WORK_DOT_PERIOD - i * 0.15) % 1 + 1) % 1
 			ctx.globalAlpha = still ? 0.6 : 0.3 + 0.6 * (0.5 - 0.5 * Math.cos(phase * PI2))
 			ctx.fillStyle = theme.text
 			ctx.beginPath()
-			ctx.arc(4 + i * 8, baseline - 5, 2, 0, PI2)
+			ctx.arc(x + 3 + i * 8, centerY, 2, 0, PI2)
 			ctx.fill()
-		}
-		if (label) {
-			// The step is quieter than ink, like the app's secondary text.
-			ctx.globalAlpha = 0.7
-			ctx.textBaseline = 'alphabetic'
-			ctx.fillStyle = theme.text
-			ctx.fillText(label, 28, baseline - 1)
 		}
 		ctx.restore()
 	}
@@ -520,14 +530,6 @@ function getMinimapPulseAlpha(phase: number): number {
 
 function getDashOffset(elapsed: number, zoom: number): number {
 	return -((elapsed / 1000) * DASH_SPEED) / zoom
-}
-
-/** The step, shortened with an ellipsis to fit the width, in the context's current font. */
-function fitStep(ctx: CanvasRenderingContext2D, step: string, maxWidth: number): string {
-	if (ctx.measureText(step).width <= maxWidth) return step
-	let text = step
-	while (text.length > 1 && ctx.measureText(text + '…').width > maxWidth) text = text.slice(0, -1)
-	return text.trimEnd() + '…'
 }
 
 function prefersReducedMotion(): boolean {

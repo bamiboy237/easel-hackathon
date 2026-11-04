@@ -9,15 +9,9 @@ export const ReviewActionUtil = registerActionUtil(
 	class ReviewActionUtil extends AgentActionUtil<ReviewAction> {
 		static override type = 'review' as const
 
-		override getInfo(action: Streaming<ReviewAction>) {
-			const label = action.complete ? 'Review' : 'Reviewing'
-			const text = action.intent?.startsWith('#') ? `\n\n${action.intent}` : action.intent
-			const description = `**${label}:** ${text ?? ''}`
-
-			return {
-				icon: 'search' as const,
-				description,
-			}
+		/** A review is the agent checking its own work: a note to itself, not shown to the user. */
+		override getInfo(_action: Streaming<ReviewAction>) {
+			return { icon: 'search' as const, description: null }
 		}
 
 		override applyAction(action: Streaming<ReviewAction>, helpers: AgentHelpers) {
