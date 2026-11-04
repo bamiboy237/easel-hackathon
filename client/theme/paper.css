@@ -382,29 +382,89 @@
 }
 
 .chat-panel.tl-theme__light .chat-input {
-	background-color: var(--paper-panel);
+	margin: 0 12px 12px;
+	background-color: transparent;
 }
 
+/*
+ * The composer: one off-white sheet with room to write, a thin rule of a
+ * border, and a faint shadow. Everything inside is quiet except the send
+ * button, the one place the accent color appears.
+ */
 .chat-panel.tl-theme__light .chat-input form {
-	background-color: var(--paper-card);
+	gap: 6px;
+	padding: 14px 12px 10px 16px;
 	border: 1px solid var(--paper-rule);
-	border-radius: 14px;
-	box-shadow: 0px 1px 2px rgba(60, 45, 20, 0.05);
+	border-radius: 18px;
+	background-color: var(--paper-card);
+	box-shadow: 0 1px 2px rgba(60, 45, 20, 0.05);
 }
 
+.chat-panel.tl-theme__light .chat-input form:focus-within {
+	border-color: #c9c1b2;
+}
+
+.chat-panel.tl-theme__light .chat-input textarea {
+	min-height: 44px;
+	padding: 0;
+	margin: 0;
+	font-family: 'Source Serif 4 Variable', Georgia, serif;
+	font-size: 15px;
+	line-height: 1.5;
+	color: var(--paper-ink);
+}
+
+.chat-panel.tl-theme__light .chat-input textarea::placeholder {
+	font-style: italic;
+	color: #9a948a;
+}
+
+.chat-panel.tl-theme__light .chat-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 12px;
+}
+
+/* The model is a quiet word; the native menu opens over it. */
+.chat-panel.tl-theme__light .chat-model-select {
+	position: relative;
+	padding: 0;
+	font-size: 12px;
+	color: var(--tl-color-text-3);
+	cursor: pointer;
+}
+
+.chat-panel.tl-theme__light .chat-model-select:hover {
+	color: var(--paper-ink);
+}
+
+.chat-panel.tl-theme__light .chat-model-select select {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+/* Send is a pencil nib in forest green: the one strong color in the pane. */
 .chat-panel.tl-theme__light .chat-input-submit {
-	width: 28px;
-	height: 28px;
-	font-size: 13px;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
 	background: var(--paper-accent);
 	color: #f5f1e7;
 	box-shadow: none;
-	transition: transform 160ms var(--ease-out);
+	transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out);
+}
+
+.chat-panel.tl-theme__light .chat-input-submit:hover:not(:disabled) {
+	background: #2a3f36;
 }
 
 .chat-panel.tl-theme__light .chat-input-submit:disabled {
-	background: var(--paper-pressed);
-	color: #a69f91;
+	background: #d9d4c9;
+	color: #f5f1e7;
+	cursor: default;
 }
 
 .chat-panel.tl-theme__light .todo-list {
@@ -412,12 +472,208 @@
 	border-color: var(--paper-rule);
 }
 
-/* The Mark button in the chat input is a plain button, styled like the tags beside it. */
-.chat-panel.tl-theme__light button.chat-context-select {
+.chat-panel.tl-theme__light .chat-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+/* Small icon buttons: fine strokes in taupe, ink on hover, a generous hit area. */
+.chat-panel.tl-theme__light .chat-icon-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	border-radius: 8px;
 	background: none;
-	color: inherit;
-	font: inherit;
+	color: var(--tl-color-text-3);
 	cursor: pointer;
+	transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+
+.chat-panel.tl-theme__light .chat-icon-button:hover {
+	background-color: var(--paper-hover);
+	color: var(--paper-ink);
+}
+
+/*
+ * Quiet and responding: the pane floats over the board in the lower right, so
+ * the board gets the whole screen. The answer opens above the composer, which
+ * stays put while the answer streams.
+ */
+.tldraw-agent-container:has(.chat-panel--floating) {
+	grid-template-columns: 1fr;
+}
+
+.chat-panel.chat-panel--floating.tl-theme__light {
+	position: absolute;
+	right: 16px;
+	/* Above the toolbar row, so it never covers the tools. */
+	bottom: 68px;
+	z-index: 300;
+	width: min(440px, calc(100vw - 40px));
+	height: auto;
+	max-height: calc(100vh - 140px);
+	gap: 8px;
+	border: none;
+	background: none;
+}
+
+.chat-panel--floating.tl-theme__light .chat-input {
+	margin: 0;
+}
+
+.chat-panel--floating.tl-theme__light .chat-input form {
+	box-shadow:
+		0 1px 2px rgba(60, 45, 20, 0.06),
+		0 10px 30px rgba(60, 45, 20, 0.08);
+}
+
+.chat-panel--floating.tl-theme__light .chat-answer {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	max-height: 46vh;
+	min-height: 0;
+	overflow: hidden;
+	border: 1px solid var(--paper-rule);
+	border-radius: 18px;
+	background-color: var(--paper-card);
+	box-shadow:
+		0 1px 2px rgba(60, 45, 20, 0.06),
+		0 10px 30px rgba(60, 45, 20, 0.08);
+	transform-origin: bottom center;
+	animation: chat-answer-open 200ms var(--ease-out);
+}
+
+.chat-panel--floating.tl-theme__light .chat-answer .chat-history {
+	padding: 14px 16px 16px;
+}
+
+.chat-panel--floating.tl-theme__light .chat-answer .chat-history-prompt-container {
+	position: static;
+	z-index: auto;
+	background-color: var(--paper-card);
+	padding-right: 64px;
+}
+
+.chat-panel--floating.tl-theme__light .chat-answer-controls {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	z-index: 1000;
+	display: flex;
+	gap: 2px;
+}
+
+/* The composer grows out of the ball's corner, and the ball settles back into it. */
+.chat-panel--floating.tl-theme__light:not(.chat-panel--ball) .chat-input form {
+	transform-origin: bottom right;
+	animation: composer-open 200ms var(--ease-out);
+}
+
+@keyframes composer-open {
+	from {
+		opacity: 0;
+		transform: scale(0.92);
+	}
+}
+
+.chat-panel.chat-panel--ball.tl-theme__light {
+	width: auto;
+	align-items: flex-end;
+}
+
+.chat-panel--ball.tl-theme__light .chat-ball {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background-color: var(--paper-accent);
+	color: #f5f1e7;
+	box-shadow:
+		0 1px 2px rgba(60, 45, 20, 0.12),
+		0 8px 20px rgba(60, 45, 20, 0.16);
+	cursor: pointer;
+	transform-origin: bottom right;
+	animation: paper-pop 180ms var(--ease-out);
+	transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out);
+}
+
+.chat-panel--ball.tl-theme__light .chat-ball:hover {
+	background-color: #2a3f36;
+}
+
+.chat-panel--ball.tl-theme__light .chat-ball:active {
+	transform: scale(0.95);
+	transition-duration: 100ms;
+}
+
+/* While the agent works, a slow ring breathes around the ball. */
+.chat-panel--ball.tl-theme__light .chat-ball--working::after {
+	content: '';
+	position: absolute;
+	inset: -5px;
+	border: 1.5px solid rgba(52, 76, 65, 0.45);
+	border-radius: 50%;
+	animation: ball-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes ball-breathe {
+	0%,
+	100% {
+		opacity: 0.25;
+		transform: scale(0.96);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1.04);
+	}
+}
+
+/* A waiting answer: a small red-pencil dot on the ball. */
+.chat-panel--ball.tl-theme__light .chat-ball-dot {
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	width: 10px;
+	height: 10px;
+	border: 2px solid #f5f1e7;
+	border-radius: 50%;
+	background-color: #ae3b2c;
+}
+
+/* The answer grows up out of the composer. */
+@keyframes chat-answer-open {
+	from {
+		opacity: 0;
+		transform: translateY(6px) scale(0.99);
+	}
+}
+
+.chat-panel--floating.tl-theme__light .chat-quiet-open {
+	position: absolute;
+	top: -24px;
+	right: 6px;
+	padding: 2px 6px;
+	border: none;
+	border-radius: 6px;
+	background: none;
+	font-size: 11px;
+	color: var(--tl-color-text-3);
+	cursor: pointer;
+}
+
+.chat-panel--floating.tl-theme__light .chat-quiet-open:hover {
+	color: var(--paper-ink);
 }
 
 /*
@@ -685,10 +941,19 @@
 	.chat-panel.tl-theme__light .prompt-tag,
 	.mark-composer,
 	.mark-chip,
+	.chat-panel--floating.tl-theme__light .chat-answer,
+	.chat-panel--floating.tl-theme__light:not(.chat-panel--ball) .chat-input form,
+	.chat-panel--ball.tl-theme__light .chat-ball,
 	.thread-note,
 	.thread-footer,
 	.go-to-agent {
 		animation-name: paper-fade-in;
+	}
+
+	/* The agent's working ring holds still instead of breathing. */
+	.chat-panel--ball.tl-theme__light .chat-ball--working::after {
+		animation: none;
+		opacity: 0.6;
 	}
 
 	.chat-panel.tl-theme__light .agent-ask-choices button:active:not(:disabled),

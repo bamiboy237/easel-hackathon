@@ -1,117 +1,107 @@
-import { FormEventHandler, useState } from 'react'
+import { FormEventHandler } from 'react'
 import { useValue } from 'tldraw'
-import { MarkIcon } from '../../shared/icons/MarkIcon'
-import { BrainIcon } from '../../shared/icons/BrainIcon'
-import { ChevronDownIcon } from '../../shared/icons/ChevronDownIcon'
+import { NibIcon } from '../../shared/icons/NibIcon'
 import { AGENT_MODEL_DEFINITIONS, AgentModelName } from '../../shared/models'
 import { getOpenQuestion } from '../agent/openQuestion'
 import { useAgent } from '../agent/TldrawAgentAppProvider'
 import { ContextItemTag } from './ContextItemTag'
 import { SelectionTag } from './SelectionTag'
 
+/**
+ * The composer: one sheet with room to write. The context it will send shows
+ * only when there is some, the model is a quiet word, and the one strong color
+ * is the pencil-nib send button. Marking lives in the toolbar.
+ */
 export function ChatInput({
 	handleSubmit,
 	inputRef,
+	value,
+	onChange,
+	onEscape,
 }: {
 	handleSubmit: FormEventHandler<HTMLFormElement>
 	inputRef: React.RefObject<HTMLTextAreaElement | null>
+	/** The draft lives in the panel, so it survives the panel changing state. */
+	value: string
+	onChange: (value: string) => void
+	onEscape?: () => void
 }) {
 	const agent = useAgent()
 	const { editor } = agent
-	const [inputValue, setInputValue] = useState('')
 	const isGenerating = useValue('isGenerating', () => agent.requests.isGenerating(), [agent])
-
-	const isContextToolActive = useValue(
-		'isContextToolActive',
-		() => {
-			const tool = editor.getCurrentTool()
-			return tool.id === 'mark'
-		},
-		[editor]
-	)
-
 	const selectedShapes = useValue('selectedShapes', () => editor.getSelectedShapes(), [editor])
 	const contextItems = useValue('contextItems', () => agent.context.getItems(), [agent])
 	const modelName = useValue('modelName', () => agent.modelName.getModelName(), [agent])
 	const hasOpenQuestion = useValue('has open question', () => getOpenQuestion(agent.chat.getHistory()) !== null, [agent])
+	const hasContext = selectedShapes.length > 0 || contextItems.length > 0
+	const stops = isGenerating && value === ''
 
 	return (
 		<div className="chat-input">
 			<form
 				onSubmit={(e) => {
 					e.preventDefault()
-					setInputValue('')
 					handleSubmit(e)
+					onChange('')
 				}}
 			>
-				<div className="prompt-tags">
-					<button
-						type="button"
-						className={'chat-context-select ' + (isContextToolActive ? 'active' : '')}
-						title="Mark something on the board to ask about it (M)"
-						onClick={() => {
-							editor.setCurrentTool(isContextToolActive ? 'select' : 'mark')
-							editor.focus()
-						}}
-					>
-						<span className="chat-context-select-label">
-							<MarkIcon /> Mark
-						</span>
-					</button>
-					{selectedShapes.length > 0 && <SelectionTag onClick={() => editor.selectNone()} />}
-					{contextItems.map((item, i) => (
-						<ContextItemTag
-							editor={editor}
-							onClick={() => agent.context.remove(item)}
-							key={'context-item-' + i}
-							item={item}
-						/>
-					))}
-				</div>
+				{hasContext && (
+					<div className="prompt-tags">
+						{selectedShapes.length > 0 && <SelectionTag onClick={() => editor.selectNone()} />}
+						{contextItems.map((item, i) => (
+							<ContextItemTag editor={editor} onClick={() => agent.context.remove(item)} key={'context-item-' + i} item={item} />
+						))}
+					</div>
+				)}
 
 				<textarea
 					ref={inputRef}
 					name="input"
 					autoComplete="off"
-					placeholder={hasOpenQuestion ? 'Pick a choice above, or type your answer' : 'Ask, learn, brainstorm, draw'}
-					value={inputValue}
-					onInput={(e) => setInputValue(e.currentTarget.value)}
+					rows={2}
+					placeholder={hasOpenQuestion ? 'Pick a choice above, or type your answer' : 'Ask, or mark something on the board'}
+					value={value}
+					onChange={(e) => onChange(e.currentTarget.value)}
 					onKeyDown={(e) => {
+						if (e.key === 'Escape' && onEscape) {
+							e.preventDefault()
+							onEscape()
+						}
 						if (e.key === 'Enter' && !e.shiftKey) {
 							e.preventDefault()
-							//idk about this but it works oops -max
-							const form = e.currentTarget.closest('form')
-							if (form) {
-								const submitEvent = new Event('submit', { bubbles: true, cancelable: true })
-								form.dispatchEvent(submitEvent)
-							}
+							e.currentTarget.closest('form')?.requestSubmit()
 						}
 					}}
 				/>
 				<span className="chat-actions">
-					<div className="chat-actions-left">
-						<div className="chat-model-select">
-							<div className="chat-model-select-label">
-								<BrainIcon /> {modelName}
-							</div>
-							<select
-								value={modelName}
-								onChange={(e) => agent.modelName.setModelName(e.target.value as AgentModelName)}
-							>
-								{Object.values(AGENT_MODEL_DEFINITIONS).map((model) => (
-									<option key={model.name} value={model.name}>
-										{model.name}
-									</option>
-								))}
-							</select>
-							<ChevronDownIcon />
-						</div>
-					</div>
-					<button className="chat-input-submit" disabled={inputValue === '' && !isGenerating}>
-						{isGenerating && inputValue === '' ? '◼' : '⬆'}
+					<label className="chat-model-select" title="Model">
+						<span>{modelName}</span>
+						<select value={modelName} onChange={(e) => agent.modelName.setModelName(e.target.value as AgentModelName)}>
+							{Object.values(AGENT_MODEL_DEFINITIONS).map((model) => (
+								<option key={model.name} value={model.name}>
+									{model.name}
+								</option>
+							))}
+						</select>
+					</label>
+					<button
+						className="chat-input-submit"
+						disabled={value === '' && !isGenerating}
+						aria-label={stops ? 'Stop' : 'Send'}
+						title={stops ? 'Stop' : 'Send'}
+					>
+						{stops ? <StopGlyph /> : <NibIcon />}
 					</button>
 				</span>
 			</form>
 		</div>
+	)
+}
+
+function StopGlyph() {
+	return (
+		<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+			<rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" />
+		</svg>
 	)
 }

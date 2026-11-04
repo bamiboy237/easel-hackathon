@@ -30,9 +30,11 @@ Here's an example of how the UI might look:
 
 */
 
-export function ChatHistory({ agent }: { agent: TldrawAgent }) {
+/** With `latestOnly`, only the newest exchange shows: the compact answer above the composer. */
+export function ChatHistory({ agent, latestOnly = false }: { agent: TldrawAgent; latestOnly?: boolean }) {
 	const historyItems = useValue('chatHistory', () => agent.chat.getHistory(), [agent])
-	const sections = getAgentHistorySections(historyItems)
+	const allSections = getAgentHistorySections(historyItems)
+	const sections = latestOnly ? allSections.slice(-1) : allSections
 	const historyRef = useRef<HTMLDivElement>(null)
 	const previousScrollDistanceFromBottomRef = useRef(0)
 
@@ -79,7 +81,7 @@ export function ChatHistory({ agent }: { agent: TldrawAgent }) {
 			{sections.map((section, i) => {
 				return (
 					<ChatHistorySection
-						key={'history-section-' + i}
+						key={'history-section-' + (allSections.length - sections.length + i)}
 						section={section}
 						loading={i === sections.length - 1 && isGenerating}
 					/>
