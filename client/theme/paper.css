@@ -385,9 +385,49 @@
 	border-color: var(--paper-rule);
 }
 
+/*
+ * Quiet arrivals. New chat rows, context tags, and todo items settle in with a
+ * short fade and a 2 px rise, like ink appearing on paper. Nothing bounces.
+ */
+.chat-panel.tl-theme__light .chat-history-section,
+.chat-panel.tl-theme__light .chat-history-change,
+.chat-panel.tl-theme__light .chat-history-group,
+.chat-panel.tl-theme__light .todo-item {
+	animation: paper-settle 180ms var(--ease-out);
+}
+
+.chat-panel.tl-theme__light .prompt-tag {
+	animation: paper-pop 140ms var(--ease-out);
+}
+
+/* A todo's state change eases its color instead of snapping. */
+.chat-panel.tl-theme__light .todo-item-icon,
+.chat-panel.tl-theme__light .todo-item-text {
+	transition: color 160ms var(--ease-out);
+}
+
+@keyframes paper-settle {
+	from {
+		opacity: 0;
+		transform: translateY(2px);
+	}
+}
+
+@keyframes paper-pop {
+	from {
+		opacity: 0;
+		transform: scale(0.97);
+	}
+}
+
 /* Keep fades, drop movement, for people who ask for less motion. */
 @media (prefers-reduced-motion: reduce) {
 	.chat-panel.tl-theme__light .agent-ask,
+	.chat-panel.tl-theme__light .chat-history-section,
+	.chat-panel.tl-theme__light .chat-history-change,
+	.chat-panel.tl-theme__light .chat-history-group,
+	.chat-panel.tl-theme__light .todo-item,
+	.chat-panel.tl-theme__light .prompt-tag,
 	.go-to-agent {
 		animation-name: paper-fade-in;
 	}
