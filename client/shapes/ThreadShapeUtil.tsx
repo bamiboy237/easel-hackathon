@@ -66,7 +66,9 @@ export function measureThreadHeight(editor: Editor, entries: ThreadEntry[]): num
 		})
 		lines += Math.max(1, Math.round(h / RULE))
 	}
-	return PAD_TOP + Math.max(1, lines) * RULE + PAD_BOTTOM
+	// One spare rule at the bottom, like a notepad, holds the thinking dots, a
+	// follow-up, or the detached note, so the note never jumps in size.
+	return PAD_TOP + (Math.max(1, lines) + 1) * RULE + PAD_BOTTOM
 }
 
 /**
@@ -86,7 +88,7 @@ export class ThreadShapeUtil extends ShapeUtil<ThreadShape> {
 	}
 
 	override getDefaultProps(): ThreadShapeProps {
-		return { w: THREAD_WIDTH, h: PAD_TOP + RULE + PAD_BOTTOM, kind: 'circle', markShapeId: '', targetIds: [], entries: [], detached: false }
+		return { w: THREAD_WIDTH, h: PAD_TOP + 2 * RULE + PAD_BOTTOM, kind: 'circle', markShapeId: '', targetIds: [], entries: [], detached: false }
 	}
 
 	override canResize() {
@@ -115,50 +117,69 @@ export class ThreadShapeUtil extends ShapeUtil<ThreadShape> {
 function ThreadNote({ shape }: { shape: ThreadShape }) {
 	const editor = useEditor()
 	const isSelected = useValue('thread selected', () => editor.getOnlySelectedShapeId() === shape.id, [editor, shape.id])
-	const isThinking = useValue(
-		'thread thinking',
+	// The thread is busy while the agent answers in it. A follow-up then would be
+	// lost when the answer's preview is rolled back, so it waits.
+	const busy = useValue(
+		'thread busy',
 		() => {
 			const agent = AgentAppAgentsManager.getAgents(editor)[0]
-			return !!agent && agent.requests.isGenerating() && shape.props.entries.at(-1)?.author === 'user'
+			if (!agent || !agent.requests.isGenerating()) return false
+			return shape.props.entries.at(-1)?.author === 'user' || agent.marks.getActive()?.threadId === shape.id
 		},
-		[editor, shape.props.entries]
+		[editor, shape.id, shape.props.entries]
 	)
+	const isThinking = busy && shape.props.entries.at(-1)?.author === 'user'
 	const [text, setText] = useState('')
 	const { w, h, entries } = shape.props
 	// A thread is detached once none of the shapes it answered exist.
 	const detached = useValue('thread detached', () => isDetached(editor, shape.id, shape.props.targetIds), [editor, shape.id, shape.props.targetIds])
 
+	// One sheet of paper: the thinking line, a follow-up, or the detached note is
+	// the last ruled line on the note itself, never a separate slip.
+	const extra = isThinking ? 'thinking' : isSelected && !busy ? 'follow-up' : detached ? 'detached' : null
+
 	return (
 		<HTMLContainer className="thread-note-container">
-			<div className={'thread-note' + (detached ? ' thread-note--detached' : '')} style={{ width: w, height: h }}>
+			<div
+				className={'thread-note' + (detached ? ' thread-note--detached' : '')}
+				style={{ width: w, height: h }}
+			>
 				{entries.map((entry, i) => (
 					<p key={i} className={`thread-entry thread-entry--${entry.author}`}>
 						{entry.text}
 					</p>
 				))}
+				{extra === 'thinking' && (
+					<p className="thread-entry thread-entry--quiet" aria-label="Thinking">
+						<span className="thread-thinking" aria-hidden>
+							<span />
+							<span />
+							<span />
+						</span>
+					</p>
+				)}
+				{extra === 'detached' && <p className="thread-entry thread-entry--quiet">What this answered was deleted.</p>}
+				{extra === 'follow-up' && (
+					<form
+						className="thread-follow-up"
+						onPointerDown={(e) => e.stopPropagation()}
+						onSubmit={(e) => {
+							e.preventDefault()
+							const agent = AgentAppAgentsManager.getAgents(editor)[0]
+							if (!agent || !text.trim()) return
+							agent.marks.followUp(shape.id, text)
+							setText('')
+						}}
+					>
+						<input
+							value={text}
+							placeholder="Ask a follow-up"
+							onChange={(e) => setText(e.target.value)}
+							onKeyDown={(e) => e.stopPropagation()}
+						/>
+					</form>
+				)}
 			</div>
-			{detached && !isSelected && <div className="thread-footer thread-footer--thinking">What this answered was deleted.</div>}
-			{isThinking && <div className="thread-footer thread-footer--thinking">Thinking…</div>}
-			{isSelected && !isThinking && (
-				<form
-					className="thread-footer"
-					onPointerDown={(e) => e.stopPropagation()}
-					onSubmit={(e) => {
-						e.preventDefault()
-						const agent = AgentAppAgentsManager.getAgents(editor)[0]
-						if (!agent || !text.trim()) return
-						agent.marks.followUp(shape.id, text)
-						setText('')
-					}}
-				>
-					<input
-						value={text}
-						placeholder="Ask a follow-up"
-						onChange={(e) => setText(e.target.value)}
-						onKeyDown={(e) => e.stopPropagation()}
-					/>
-				</form>
-			)}
 		</HTMLContainer>
 	)
 }

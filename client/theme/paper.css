@@ -723,38 +723,71 @@
 	color: #3b3320;
 }
 
-/* A slip below the note: the follow-up line when selected, or that the agent is thinking. */
-.thread-footer {
-	box-sizing: border-box;
-	margin: 6px 0 0 8px;
-	width: calc(100% - 16px);
-	padding: 4px 10px;
-	border-radius: 3px;
-	background-color: #fbf1b6;
-	box-shadow: 0 1px 1px rgba(60, 45, 20, 0.08), 0 4px 10px rgba(60, 45, 20, 0.12);
-	font-family: 'Source Serif 4 Variable', Georgia, serif;
+/* The quiet last line of a note: that the agent is thinking, or that its target is gone. */
+.thread-entry--quiet {
 	font-size: 14px;
-	animation: paper-settle 160ms var(--ease-out);
-}
-
-.thread-footer--thinking {
 	font-style: italic;
 	color: #9a8a58;
 }
 
-.thread-footer input {
+/* Thinking: three pencil dots that rise and fall in turn, written on the paper. */
+.thread-thinking {
+	display: inline-flex;
+	gap: 4px;
+	padding-left: 2px;
+}
+
+.thread-thinking span {
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background-color: #ae3b2c;
+	opacity: 0.35;
+	animation: thread-thinking 1.2s ease-in-out infinite;
+}
+
+.thread-thinking span:nth-child(2) {
+	animation-delay: 0.15s;
+}
+
+.thread-thinking span:nth-child(3) {
+	animation-delay: 0.3s;
+}
+
+@keyframes thread-thinking {
+	0%,
+	100% {
+		opacity: 0.35;
+		transform: translateY(0);
+	}
+	50% {
+		opacity: 1;
+		transform: translateY(-2px);
+	}
+}
+
+/* The follow-up is written on the note's last line, in the same red pencil as the question. */
+.thread-follow-up {
+	margin: 0;
+}
+
+.thread-follow-up input {
 	width: 100%;
+	height: 24px;
+	padding: 0;
 	border: none;
 	outline: none;
 	background: none;
-	font: inherit;
-	color: #3b3320;
+	font-family: 'Source Serif 4 Variable', Georgia, serif;
+	font-size: 14px;
+	font-style: italic;
+	line-height: 24px;
+	color: #ae3b2c;
 	caret-color: #ae3b2c;
 }
 
-.thread-footer input::placeholder {
-	font-style: italic;
-	color: #9a8a58;
+.thread-follow-up input::placeholder {
+	color: #b9a873;
 }
 
 /* After a pen circle, a tiny sticky tab offers to ask about it. */
@@ -991,13 +1024,13 @@
 	.chat-panel--floating.tl-theme__light:not(.chat-panel--ball) .chat-input form,
 	.chat-panel--ball.tl-theme__light .chat-ball,
 	.thread-note,
-	.thread-footer,
 	.go-to-agent {
 		animation-name: paper-fade-in;
 	}
 
-	/* The listening dot and the agent's working ring hold still instead of breathing. */
-	.mark-listening-dot {
+	/* The listening dot, the thinking dots, and the agent's working ring hold still. */
+	.mark-listening-dot,
+	.thread-thinking span {
 		animation: none;
 	}
 

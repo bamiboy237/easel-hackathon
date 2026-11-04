@@ -28,12 +28,24 @@ export const ReplyInThreadActionUtil = registerActionUtil(
 		}
 
 		override applyAction(action: Streaming<ReplyInThreadAction>) {
-			if (!action.complete) return
 			const { editor } = this.agent
-			const id = `shape:${action.thread}` as TLShapeId
-			const thread = editor.getShape<ThreadShape>(id)
+			if (!action.text) return
+			// The model may write the text before the thread ID, and a half-written ID
+			// names no shape. Until the ID names a thread, the answer streams onto the
+			// thread this mark question belongs to.
+			const named = action.thread ? editor.getShape<ThreadShape>(`shape:${action.thread}` as TLShapeId) : undefined
+			const fallback = this.agent.marks.getActive()?.threadId
+			const thread =
+				named?.type === THREAD_TYPE ? named : fallback ? editor.getShape<ThreadShape>(fallback as TLShapeId) : undefined
 			if (!thread || thread.type !== THREAD_TYPE) return
-			const entries = [...thread.props.entries, { author: 'agent' as const, text: action.text.trim() }]
+			const id = thread.id
+			// The answer streams onto the note as it is written. Each partial version
+			// replaces the last; only the finished answer is recorded.
+			const entries = [...thread.props.entries, { author: 'agent' as const, text: action.complete ? action.text.trim() : action.text }]
+			if (!action.complete) {
+				editor.updateShape<ThreadShape>({ id, type: THREAD_TYPE, props: { entries } })
+				return
+			}
 			// A longer note must not grow over other work. If it would, it moves to the
 			// next clear spot beside its mark.
 			const h = measureThreadHeight(editor, entries)

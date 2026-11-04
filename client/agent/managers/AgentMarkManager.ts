@@ -396,6 +396,9 @@ export class AgentMarkManager extends BaseAgentManager {
 		const thread = editor.getShape<ThreadShape>(threadId)
 		const question = text.trim()
 		if (!thread || !question) return
+		// While the agent is still answering in this thread, its preview would be
+		// rolled back over the new question, so the follow-up waits.
+		if (this.agent.requests.isGenerating() && this.getActive()?.threadId === threadId) return
 		const history = thread.props.entries
 		this.agent.commands.execute('user', 'thread-follow-up', () => {
 			editor.updateShape<ThreadShape>({ id: threadId, type: THREAD_TYPE, props: { entries: [...history, { author: 'user', text: question }] } })
