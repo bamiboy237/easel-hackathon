@@ -28,7 +28,7 @@ export function ChatHistoryGroupWithDiff({ group }: { group: ChatHistoryGroup })
 	const handleReject = useCallback(() => {
 		const passIds = [...new Set(items.map((item) => item.passId).filter((id) => id !== undefined))]
 		const commandIds = passIds.flatMap((passId) => agent.commands.getAgentCommandIds({ passId }))
-		const { commandId, kept } = agent.commands.revert(commandIds)
+		const { commandId, kept } = agent.actions.showChange(() => agent.commands.revert(commandIds))
 		if (!commandId) return
 		markItems((item) => ({
 			...item,
@@ -36,20 +36,20 @@ export function ChatHistoryGroupWithDiff({ group }: { group: ChatHistoryGroup })
 			revertCommandId: commandId,
 			keptRecordIds: kept.map((record) => record.id),
 		}))
-	}, [items, agent.commands, markItems])
+	}, [items, agent.commands, agent.actions, markItems])
 
 	// Restore what the last revert undid.
 	const handleAccept = useCallback(() => {
 		const revertCommandId = items.find((item) => item.revertCommandId)?.revertCommandId
 		if (!revertCommandId) return
-		const { kept } = agent.commands.revert([revertCommandId], 'restore')
+		const { kept } = agent.actions.showChange(() => agent.commands.revert([revertCommandId], 'restore'))
 		markItems((item) => ({
 			...item,
 			acceptance: 'accepted',
 			revertCommandId: undefined,
 			keptRecordIds: kept.map((record) => record.id),
 		}))
-	}, [items, agent.commands, markItems])
+	}, [items, agent.commands, agent.actions, markItems])
 
 	const keptCount = useMemo(
 		() => new Set(items.flatMap((item) => item.keptRecordIds ?? [])).size,

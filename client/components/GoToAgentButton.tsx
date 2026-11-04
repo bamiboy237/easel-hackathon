@@ -77,7 +77,7 @@ export function GoToAgentButton({ agent }: { agent: TldrawAgent }) {
 	if (!agentIsOffscreen) return null
 
 	return (
-		<TldrawUiButton type="low" onClick={handleClick}>
+		<TldrawUiButton type="low" className="go-to-agent" onClick={handleClick}>
 			<div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
 				<TldrawUiButtonIcon
 					icon={

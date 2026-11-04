@@ -11,12 +11,13 @@ import {
 } from 'tldraw'
 import { ContextItem } from '../../shared/types/ContextItem'
 import { AgentAppAgentsManager } from '../agent/managers/AgentAppAgentsManager'
-import { PROTECTED_FLASH_MS } from '../agent/managers/AgentActionManager'
+import { CHANGE_GHOST_MS, PROTECTED_FLASH_MS } from '../agent/managers/AgentActionManager'
 
 type AgentHighlightColor = 'selected' | 'tooltip' | 'protected'
 
 // The outline on the user's shapes after the agent bumps into them stays quiet.
 const PROTECTED_ALPHA = 0.4
+const GHOST_WASH_ALPHA = 0.12
 const FLASH_IN_MS = 120
 const FLASH_OUT_MS = 240
 const ANIMATION_PERIOD = 100_000
@@ -33,6 +34,8 @@ interface AgentAreaHighlightOverlay extends TLOverlay {
 		generating: boolean
 		/** For a protected flash: when it started, so it can fade in and out. */
 		flashStartedAt?: number
+		/** For an undo or restore: what happened to the shape, and when. */
+		ghost?: { kind: 'removed' | 'added'; startedAt: number }
 		label?: string
 	}
 }
@@ -94,6 +97,20 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 				})
 			}
 
+			for (const ghost of agent.actions.getChangeGhosts()) {
+				overlays.push({
+					id: `agent-highlight:${agent.id}:ghost:${ghost.id}`,
+					type: 'agent-highlight',
+					props: {
+						kind: 'area',
+						bounds: ghost.bounds,
+						color: 'protected',
+						generating: false,
+						ghost: { kind: ghost.kind, startedAt: ghost.startedAt },
+					},
+				})
+			}
+
 			for (const shapeId of agent.actions.getProtectedFlash()) {
 				const bounds = this.editor.getShapePageBounds(shapeId)
 				if (!bounds) continue
@@ -123,7 +140,7 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 		// advance the animation. This is a side effect, so it belongs in render
 		// (an effect) rather than getOverlays (a reactive computation).
 		this.hasAnimatedOverlays = overlays.some(
-			(overlay) => overlay.props.generating || overlay.props.color === 'protected'
+			(overlay) => overlay.props.generating || overlay.props.color === 'protected' // includes ghosts
 		)
 
 		const zoom = this.editor.getZoomLevel()
@@ -133,7 +150,9 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 		for (const overlay of overlays) {
 			const color = colors[overlay.props.color]
 
-			if (overlay.props.kind === 'area') {
+			if (overlay.props.kind === 'area' && overlay.props.ghost) {
+				this.renderGhost(ctx, overlay.props.bounds, overlay.props.ghost, color, zoom)
+			} else if (overlay.props.kind === 'area') {
 				this.renderArea(ctx, overlay.props.bounds, {
 					color,
 					alpha:
@@ -322,6 +341,35 @@ export class AgentHighlightOverlayUtil extends OverlayUtil<AgentHighlightOverlay
 		if (label) {
 			this.renderLabel(ctx, bounds, label, color, labelText, zoom)
 		}
+	}
+
+	/**
+	 * Where an undo removed a shape, a soft wash fades away; where a restore
+	 * brought one back, an outline fades away. Both use a plain ease-out fade.
+	 */
+	private renderGhost(
+		ctx: CanvasRenderingContext2D,
+		pageBounds: BoxModel,
+		ghost: { kind: 'removed' | 'added'; startedAt: number },
+		color: string,
+		zoom: number
+	): void {
+		const t = Math.min(1, (Date.now() - ghost.startedAt) / CHANGE_GHOST_MS)
+		const fade = 1 - easeOut(t)
+		if (fade <= 0) return
+		ctx.save()
+		ctx.fillStyle = color
+		ctx.strokeStyle = color
+		ctx.lineWidth = 1 / zoom
+		if (ghost.kind === 'removed') {
+			ctx.globalAlpha = GHOST_WASH_ALPHA * fade
+			ctx.fillRect(pageBounds.x, pageBounds.y, pageBounds.w, pageBounds.h)
+		} else {
+			const bounds = Box.From(pageBounds).expandBy(4)
+			ctx.globalAlpha = PROTECTED_ALPHA * fade
+			ctx.strokeRect(bounds.x, bounds.y, bounds.w, bounds.h)
+		}
+		ctx.restore()
 	}
 
 	private renderPoint(

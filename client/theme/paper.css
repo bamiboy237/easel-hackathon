@@ -293,6 +293,25 @@
 	padding: 0 8px 6px 24px;
 	font-size: 11px;
 	color: var(--tl-color-text-3);
+	animation: paper-fade-in 160ms var(--ease-out);
+}
+
+/* The button that points at an offscreen agent comes in from slightly smaller, never from nothing. */
+.go-to-agent {
+	animation: go-to-agent-enter 160ms var(--ease-out);
+}
+
+@keyframes go-to-agent-enter {
+	from {
+		opacity: 0;
+		transform: scale(0.95);
+	}
+}
+
+@keyframes paper-fade-in {
+	from {
+		opacity: 0;
+	}
 }
 
 .chat-panel.tl-theme__light .chat-history-change-acceptance {
@@ -368,18 +387,13 @@
 
 /* Keep fades, drop movement, for people who ask for less motion. */
 @media (prefers-reduced-motion: reduce) {
-	.chat-panel.tl-theme__light .agent-ask {
-		animation-name: agent-ask-fade;
+	.chat-panel.tl-theme__light .agent-ask,
+	.go-to-agent {
+		animation-name: paper-fade-in;
 	}
 
 	.chat-panel.tl-theme__light .agent-ask-choices button:active:not(:disabled),
 	.chat-panel.tl-theme__light .chat-input-submit:active:not(:disabled) {
 		transform: none;
-	}
-}
-
-@keyframes agent-ask-fade {
-	from {
-		opacity: 0;
 	}
 }

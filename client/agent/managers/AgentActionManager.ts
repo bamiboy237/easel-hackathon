@@ -17,6 +17,17 @@ const MAX_REJECTION_PASSES = 3
 /** How long the board outlines protected shapes after the agent bumps into them. */
 export const PROTECTED_FLASH_MS = 1600
 
+/** How long the board marks where an undo removed shapes, or a restore brought them back. */
+export const CHANGE_GHOST_MS = 320
+
+/** Where an undo or restore removed or added a shape, for a short fade on the board. */
+export interface ChangeGhost {
+	id: string
+	bounds: { x: number; y: number; w: number; h: number }
+	kind: 'removed' | 'added'
+	startedAt: number
+}
+
 /**
  * Manages action-related functionality for the agent.
  * Handles action utils, action execution, and chat history updates for actions.
@@ -42,6 +53,8 @@ export class AgentActionManager extends BaseAgentManager {
 	private $protectedFlash = atom<TLShapeId[]>('protected flash', [])
 	private protectedFlashTimeout: ReturnType<typeof setTimeout> | null = null
 	private protectedFlashStartedAt = 0
+	private $changeGhosts = atom<ChangeGhost[]>('change ghosts', [])
+	private changeGhostTimeout: ReturnType<typeof setTimeout> | null = null
 
 	constructor(agent: TldrawAgent) {
 		super(agent)
@@ -70,6 +83,44 @@ export class AgentActionManager extends BaseAgentManager {
 	/** The protected shapes the board outlines briefly after a protected rejection. */
 	getProtectedFlash(): TLShapeId[] {
 		return this.$protectedFlash.get()
+	}
+
+	/** Where the last undo or restore removed or added shapes, while they fade. */
+	getChangeGhosts(): ChangeGhost[] {
+		return this.$changeGhosts.get()
+	}
+
+	/**
+	 * Run an undo or restore, and fade the shapes it removed or added so they
+	 * do not pop off or on. The change itself is instant; only the overlay fades.
+	 */
+	showChange<T>(change: () => T): T {
+		const before = this.getPageShapeBounds()
+		const result = change()
+		const after = this.getPageShapeBounds()
+		const startedAt = Date.now()
+		const ghosts: ChangeGhost[] = []
+		for (const [id, bounds] of before) if (!after.has(id)) ghosts.push({ id, bounds, kind: 'removed', startedAt })
+		for (const [id, bounds] of after) if (!before.has(id)) ghosts.push({ id, bounds, kind: 'added', startedAt })
+		if (ghosts.length > 0 && !prefersReducedMotion()) {
+			this.$changeGhosts.set(ghosts)
+			if (this.changeGhostTimeout) clearTimeout(this.changeGhostTimeout)
+			this.changeGhostTimeout = setTimeout(() => {
+				this.$changeGhosts.set([])
+				this.changeGhostTimeout = null
+			}, CHANGE_GHOST_MS)
+		}
+		return result
+	}
+
+	private getPageShapeBounds() {
+		const { editor } = this.agent
+		const map = new Map<string, ChangeGhost['bounds']>()
+		for (const id of editor.getCurrentPageShapeIds()) {
+			const b = editor.getShapePageBounds(id)
+			if (b) map.set(id, { x: b.x, y: b.y, w: b.w, h: b.h })
+		}
+		return map
 	}
 
 	/** When the current protected flash started, so the overlay can fade it in and out. */
@@ -255,4 +306,8 @@ export class AgentActionManager extends BaseAgentManager {
 			this.protectedFlashTimeout = null
 		}, PROTECTED_FLASH_MS)
 	}
+}
+
+function prefersReducedMotion(): boolean {
+	return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 }
