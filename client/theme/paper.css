@@ -854,7 +854,11 @@
 	line-height: 24px;
 }
 
-.mark-composer-label {
+.mark-composer .mark-composer-label {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
 	font-family: 'Source Serif 4 Variable', Georgia, serif;
 	font-size: 13px;
 	font-style: italic;
@@ -862,6 +866,48 @@
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.mark-composer-label > span:first-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* While the app listens, a small red-pencil dot breathes beside the label; it steadies once it hears you. */
+.mark-listening {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 5px;
+	font-family: 'Inter', sans-serif;
+	font-size: 10px;
+	font-style: normal;
+	letter-spacing: 0.02em;
+	color: var(--sticky-muted);
+}
+
+.mark-listening-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background-color: var(--pencil);
+	animation: listening-breathe 1.4s ease-in-out infinite;
+}
+
+.mark-listening--heard .mark-listening-dot {
+	animation-duration: 0.7s;
+}
+
+@keyframes listening-breathe {
+	0%,
+	100% {
+		opacity: 0.35;
+		transform: scale(0.8);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1.1);
+	}
 }
 
 .mark-composer form {
@@ -950,7 +996,11 @@
 		animation-name: paper-fade-in;
 	}
 
-	/* The agent's working ring holds still instead of breathing. */
+	/* The listening dot and the agent's working ring hold still instead of breathing. */
+	.mark-listening-dot {
+		animation: none;
+	}
+
 	.chat-panel--ball.tl-theme__light .chat-ball--working::after {
 		animation: none;
 		opacity: 0.6;

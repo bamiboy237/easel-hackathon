@@ -35,11 +35,18 @@ export function MarkComposer() {
 	)
 	const [text, setText] = useState('')
 	const inputRef = useRef<HTMLInputElement>(null)
+	const listening = useValue('mark listening', () => agent.marks.getListening(), [agent])
+	const spoken = useValue('mark spoken', () => agent.marks.getSpoken(), [agent])
 
 	useEffect(() => {
 		setText('')
 		if (draft) requestAnimationFrame(() => inputRef.current?.focus())
 	}, [draft?.id])
+
+	// The words fill the note as they are heard; the user can edit them before asking.
+	useEffect(() => {
+		if (spoken !== null) setText(spoken)
+	}, [spoken])
 
 	if (!draft || !anchor) return null
 	const about = describeTargets(editor, draft.targetIds)
@@ -50,7 +57,20 @@ export function MarkComposer() {
 			style={{ left: anchor.x, top: anchor.y }}
 			onPointerDown={(e) => e.stopPropagation()}
 		>
-			<div className="mark-composer-label">{about}</div>
+			<div className="mark-composer-label">
+				<span>{about}</span>
+				{(listening === 'listening' || listening === 'heard') && (
+					// Only a small breathing dot shows the microphone is on; the words stay for screen readers.
+					<span
+						className={'mark-listening' + (listening === 'heard' ? ' mark-listening--heard' : '')}
+						role="status"
+						aria-label="Listening"
+						title="Listening"
+					>
+						<span className="mark-listening-dot" aria-hidden />
+					</span>
+				)}
+			</div>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault()
@@ -60,8 +80,12 @@ export function MarkComposer() {
 				<input
 					ref={inputRef}
 					value={text}
-					placeholder={MARK_INTENTS[draft.kind]}
-					onChange={(e) => setText(e.target.value)}
+					placeholder={listening !== 'off' ? 'Say your question, or type it' : MARK_INTENTS[draft.kind]}
+					onChange={(e) => {
+						// Typing takes over from listening and keeps the words heard so far.
+						if (listening !== 'off') agent.marks.stopListening()
+						setText(e.target.value)
+					}}
 					onKeyDown={(e) => {
 						e.stopPropagation()
 						if (e.key === 'Escape') {
