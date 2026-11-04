@@ -26,6 +26,7 @@ import { isReferenceBoard, ReferenceBoardLoader } from './components/ReferenceBo
 import { paperTheme } from './theme/paperTheme'
 import { AgentHighlightOverlayUtil } from './overlays/AgentHighlightOverlayUtil'
 import { MarkOverlayUtil } from './overlays/MarkOverlayUtil'
+import { AnnotationBindingUtil } from './shapes/AnnotationBindingUtil'
 import { ThreadShapeUtil } from './shapes/ThreadShapeUtil'
 import { MarkTool } from './tools/MarkTool'
 
@@ -40,6 +41,8 @@ const tools = [MarkTool]
 const overlayUtils = [AgentHighlightOverlayUtil, MarkOverlayUtil]
 // Threads: a mark's question and answers on a sticky note beside it
 const shapeUtils = [ThreadShapeUtil]
+// Marks and threads follow the shapes they point at
+const bindingUtils = [AnnotationBindingUtil]
 const themes = { default: paperTheme }
 
 /**
@@ -117,6 +120,7 @@ function App() {
 						persistenceKey={isReferenceBoard ? undefined : 'tldraw-agent-demo'}
 						tools={tools}
 						shapeUtils={shapeUtils}
+						bindingUtils={bindingUtils}
 						overlayUtils={overlayUtils}
 						overrides={overrides}
 						components={components}

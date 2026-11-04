@@ -1,3 +1,4 @@
+import { ANNOTATION_BINDING } from '../../shapes/AnnotationBindingUtil'
 import {
 	atom,
 	Box,
@@ -503,6 +504,26 @@ export class BoardCommandManager {
 		return pairs
 	}
 
+	/**
+	 * True when a change to an annotation, a mark or a thread, came from following
+	 * its target: one of the shapes it is bound to, or a shape holding one, changed
+	 * in the same command, and the annotation itself only moved or was resized. A
+	 * command that moves an annotation without touching its targets, or edits it in
+	 * any other way, such as a new color, is still checked.
+	 */
+	private followedTarget(prev: TLShape, next: TLShape, changes: RecordsDiff<TLRecord>): boolean {
+		const changed = (shapeId: string) => shapeId in changes.updated || shapeId in changes.removed
+		const targetChanged = this.editor
+			.getBindingsFromShape(next.id, ANNOTATION_BINDING)
+			.some(
+				(binding) =>
+					changed(binding.toId) ||
+					// A target also moves when a shape holding it, such as a frame, moves.
+					this.editor.getShapeAncestors(binding.toId).some((ancestor) => changed(ancestor.id))
+			)
+		return targetChanged && onlyMovedOrResized(prev, next)
+	}
+
 	/** The protected shapes an agent command would change, move, delete, or cover. */
 	private getProtectedViolations(
 		changes: RecordsDiff<TLRecord>,
@@ -537,6 +558,8 @@ export class BoardCommandManager {
 		}
 		for (const [prev, next] of Object.values(changes.updated)) {
 			if (next.typeName !== 'shape' || prev.typeName !== 'shape') continue
+			// A mark or thread that followed its target in this same command is not an edit.
+			if (this.followedTarget(prev as TLShape, next as TLShape, changes)) continue
 			// A protected shape, or a shape moved into a user region.
 			if (check(next.id, before) || check(next.id, after)) continue
 			placed.push(next.id)
@@ -660,4 +683,18 @@ export class BoardCommandManager {
 		this.history.update((history) => [...history, command])
 		return command.commandId
 	}
+}
+
+
+/** The props a resize may change on a mark's stroke; every other prop must stay. */
+const RESIZE_PROPS = new Set(['segments', 'scale', 'scaleX', 'scaleY'])
+
+/** True when a shape changed only its position, or its size by a resize. */
+function onlyMovedOrResized(prev: TLShape, next: TLShape): boolean {
+	const { x: _px, y: _py, props: prevProps, ...prevRest } = prev
+	const { x: _nx, y: _ny, props: nextProps, ...nextRest } = next
+	if (JSON.stringify(prevRest) !== JSON.stringify(nextRest)) return false
+	const a = prevProps as Record<string, unknown>
+	const b = nextProps as Record<string, unknown>
+	return Object.keys({ ...a, ...b }).every((key) => RESIZE_PROPS.has(key) || JSON.stringify(a[key]) === JSON.stringify(b[key]))
 }

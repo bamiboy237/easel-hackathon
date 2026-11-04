@@ -87,7 +87,8 @@ export const CreateActionUtil = registerActionUtil(
 						toId: binding.toId,
 						props: binding.props,
 						meta: binding.meta,
-					})
+						// The agent's shapes only carry arrow bindings.
+					} as Parameters<typeof editor.createBinding>[0])
 				}
 			}
 		}
