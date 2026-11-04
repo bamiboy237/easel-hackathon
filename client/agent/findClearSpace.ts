@@ -1,4 +1,4 @@
-import { Box, Editor, TLShapeId } from 'tldraw'
+import { Box, Editor, TLShape, TLShapeId } from 'tldraw'
 
 /** Space kept between new work and the shapes around it. */
 const MARGIN = 40
@@ -73,11 +73,24 @@ export function findNoteSpot(
 	ignore: TLShapeId[] = []
 ): Box | null {
 	const ignored = new Set(ignore)
-	const obstacles = editor
-		.getCurrentPageShapes()
-		.filter((shape) => shape.parentId === editor.getCurrentPageId() && !ignored.has(shape.id))
-		.map((shape) => editor.getShapePageBounds(shape))
-		.filter((bounds): bounds is Box => !!bounds && !subject.contains(bounds))
+	const bounds = (id: TLShapeId) => editor.getShapePageBounds(id)
+	const topLevel = editor.getCurrentPageShapes().filter((shape) => shape.parentId === editor.getCurrentPageId())
+	// A frame or group that holds the subject, or a shape the caller ignores,
+	// is the user's own work about the same thing, so the note may sit over its
+	// empty space. Only what is drawn inside it blocks the note. Any other shape
+	// that holds the subject, such as an image the mark circles part of, still
+	// blocks the note.
+	const holds = (shape: TLShape) => (shape.type === 'frame' || shape.type === 'group') && !!bounds(shape.id)?.contains(subject)
+	const containers = topLevel.filter((shape) => ignored.has(shape.id) || holds(shape))
+	const inside: TLShapeId[] = []
+	for (const container of containers) {
+		editor.visitDescendants(container.id, (id) => {
+			if (id !== container.id && !ignored.has(id)) inside.push(id)
+		})
+	}
+	const obstacles = [...topLevel.filter((shape) => !containers.includes(shape)).map((shape) => shape.id), ...inside]
+		.map((id) => bounds(id))
+		.filter((box): box is Box => !!box && !subject.contains(box))
 	const view = editor.getViewportPageBounds()
 	const margin = 8
 	const gap = 24
@@ -94,10 +107,13 @@ export function findNoteSpot(
 		const slide = side === 0 || side === 2 ? Math.abs(box.y - subject.y) : Math.abs(box.x - subject.x)
 		return Math.hypot(dx, dy) + slide * 0.5 + side * 12
 	}
-	// A subject inside a frame has no room beside it inside the frame, so the
-	// sides of each shape that holds it are tried too, still scored by distance
-	// to the subject itself.
-	const anchors = [subject, ...obstacles.filter((obstacle) => obstacle.contains(subject))]
+	// The sides of each shape that holds the subject, such as its frame or the
+	// image it circles part of, are tried too, still scored by distance to the
+	// subject itself.
+	const anchors = [
+		subject,
+		...topLevel.map((shape) => bounds(shape.id)).filter((box): box is Box => !!box && box.contains(subject)),
+	]
 	const candidates: { box: Box; inView: boolean; score: number }[] = []
 	for (const anchor of anchors) {
 		for (let step = 0; step <= 8; step++) {
@@ -129,14 +145,26 @@ export function findNoteSpot(
 	return null
 }
 
-/** True when a box overlaps a top-level shape other than the ones ignored. */
+/**
+ * True when a box overlaps a top-level shape other than the ones ignored. An
+ * ignored frame or group still has its contents checked, so a note may sit over
+ * a frame's empty space but not over what is drawn in it.
+ */
 export function overlapsShapes(editor: Editor, box: Box, ignore: TLShapeId[] = []): boolean {
 	const ignored = new Set(ignore)
-	return editor
-		.getCurrentPageShapes()
-		.filter((shape) => shape.parentId === editor.getCurrentPageId() && !ignored.has(shape.id))
-		.some((shape) => {
-			const bounds = editor.getShapePageBounds(shape)
-			return !!bounds && box.collides(bounds)
+	const ids: TLShapeId[] = []
+	for (const shape of editor.getCurrentPageShapes()) {
+		if (shape.parentId !== editor.getCurrentPageId()) continue
+		if (!ignored.has(shape.id)) {
+			ids.push(shape.id)
+			continue
+		}
+		editor.visitDescendants(shape.id, (id) => {
+			if (id !== shape.id && !ignored.has(id)) ids.push(id)
 		})
+	}
+	return ids.some((id) => {
+		const bounds = editor.getShapePageBounds(id)
+		return !!bounds && box.collides(bounds)
+	})
 }

@@ -4,8 +4,20 @@ import { THREAD_TYPE, ThreadShape } from '../shapes/ThreadShapeUtil'
 
 interface MarkOverlay extends TLOverlay {
 	type: 'mark'
-	props: { stroke: VecModel[] | null; targets: Box[]; connectors: [VecModel, VecModel][] }
+	props: { stroke: VecModel[] | null; targets: Box[]; connectors: Connector[] }
 }
+
+/** A line from a mark to its thread, drawn in full or as two short ticks. */
+interface Connector {
+	start: VecModel
+	end: VecModel
+	full: boolean
+}
+
+/** Longer connectors than this, in page units, show in full only on focus. */
+const LONG_CONNECTOR = 160
+/** The length of each end tick of a folded connector, in screen pixels. */
+const TICK = 14
 
 /** The board's red ink, the same as the mark the board keeps. */
 const MARK_RED = '#AE3B2C'
@@ -46,9 +58,11 @@ export class MarkOverlayUtil extends OverlayUtil<MarkOverlay> {
 	 * For each thread, a line from the near edge of its mark (or of its targets,
 	 * for a tap) to the first rule of the note. Close neighbors need no line.
 	 */
-	private getConnectors(): [VecModel, VecModel][] {
+	private getConnectors(): Connector[] {
 		const { editor } = this
-		const lines: [VecModel, VecModel][] = []
+		const lines: Connector[] = []
+		const selected = new Set<string>(editor.getSelectedShapeIds())
+		const hovered = editor.getHoveredShapeId()
 		for (const thread of this.getThreads()) {
 			const note = editor.getShapePageBounds(thread)
 			const markId = thread.props.markShapeId as TLShapeId
@@ -62,11 +76,17 @@ export class MarkOverlayUtil extends OverlayUtil<MarkOverlay> {
 			if (!note || !mark || mark.w === 0) continue
 			const end = { x: note.minX, y: note.minY + 26 }
 			const leftOfNote = mark.maxX <= note.minX
+			const above = note.maxY <= mark.minY
 			const start = leftOfNote
 				? { x: mark.maxX, y: Math.min(Math.max(end.y, mark.minY), mark.maxY) }
-				: { x: mark.midX, y: mark.maxY }
-			if (Math.hypot(end.x - start.x, end.y - start.y) < 36) continue
-			lines.push([start, end])
+				: { x: mark.midX, y: above ? mark.minY : mark.maxY }
+			const length = Math.hypot(end.x - start.x, end.y - start.y)
+			if (length < 36) continue
+			// A long line would cross other work, so it shows in full only while the
+			// thread or its mark is selected or hovered. Otherwise a short tick at
+			// each end says the two belong together.
+			const focused = [thread.id, markId].some((id) => id && (selected.has(id) || hovered === id))
+			lines.push({ start, end, full: length <= LONG_CONNECTOR || focused })
 		}
 		return lines
 	}
@@ -89,7 +109,7 @@ export class MarkOverlayUtil extends OverlayUtil<MarkOverlay> {
 				ctx.restore()
 			}
 			// A quiet dashed pencil line from each mark to its thread, gently curved.
-			for (const [a, b] of props.connectors) {
+			for (const { start: a, end: b, full } of props.connectors) {
 				ctx.save()
 				ctx.strokeStyle = MARK_RED
 				ctx.globalAlpha = 0.5
@@ -97,9 +117,20 @@ export class MarkOverlayUtil extends OverlayUtil<MarkOverlay> {
 				ctx.lineCap = 'round'
 				ctx.setLineDash([5 / zoom, 5 / zoom])
 				ctx.beginPath()
-				ctx.moveTo(a.x, a.y)
 				const mx = (a.x + b.x) / 2
-				ctx.bezierCurveTo(mx, a.y, mx, b.y, b.x, b.y)
+				if (full) {
+					ctx.moveTo(a.x, a.y)
+					ctx.bezierCurveTo(mx, a.y, mx, b.y, b.x, b.y)
+				} else {
+					// The first and last stretch of the same curve, pointing at each other.
+					const tick = TICK / zoom
+					const ax = a.x + Math.sign(mx - a.x || 1) * tick
+					ctx.moveTo(a.x, a.y)
+					ctx.lineTo(ax, a.y)
+					const bx = b.x - Math.sign(b.x - mx || 1) * tick
+					ctx.moveTo(bx, b.y)
+					ctx.lineTo(b.x, b.y)
+				}
 				ctx.stroke()
 				ctx.restore()
 			}
