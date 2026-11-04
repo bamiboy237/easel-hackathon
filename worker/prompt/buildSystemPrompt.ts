@@ -5,6 +5,7 @@ import { getSystemPromptFlags } from './getSystemPromptFlags'
 import { buildIntroPromptSection } from './sections/intro-section'
 import { buildRulesPromptSection } from './sections/rules-section'
 import canvasWorkSkill from './skills/canvas-work.md?raw'
+import designSkill from './skills/design.md?raw'
 import drawingSkill from './skills/drawing.md?raw'
 import explainingSkill from './skills/explaining.md?raw'
 
@@ -38,6 +39,7 @@ export function buildSystemPrompt(
 		buildIntroPromptSection(flags),
 		canvasWorkSkill,
 		drawingSkill,
+		designSkill,
 		explainingSkill,
 		buildRulesPromptSection(flags),
 	]

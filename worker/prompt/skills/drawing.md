@@ -21,26 +21,27 @@ Adapted from the craft rules in Anatomy (github.com/wheresryan22/anatomy, MIT) a
 
 ### 3D on a flat board
 
-- **Isometric view.** For a point (x, y, z) with z up, draw it at screen position ((x − y) × 0.87, (x + y) × 0.5 − z). Compute the corners of each solid this way, then connect them with `line` or `pen` shapes. A cube shows three faces: top, left, and right.
-- **Shade by face.** The top face is lightest, the face toward the light is medium, the face away from it is darkest. Use the same three tones for every solid.
-- **Circles in 3D are ellipses.** A wheel or disk seen at an angle is an ellipse; the more it tilts away from you, the flatter it gets. A cylinder is two matching ellipses joined by two straight sides.
-- **Paint far to near.** Create the parts farthest from the viewer first and the nearest last, so nearer parts cover farther ones. Split a part that wraps around another (a frame around a wheel) into a back half and a front half.
-- **Show depth with overlap and size.** Nearer things are larger and cover farther things. Draw hidden edges only when the user asks for them, as thin dashed lines.
+- **Isometric view.** For a point (x, y, z) with z up, draw it at board position ((x − y) × 0.87, (x + y) × 0.5 − z). Compute the corners of each solid this way.
+- **Faces are closed `pen` paths** with `style: straight` and `closed: true`, through the face's projected corners. A box shows three faces: top, left, and right.
+- **Shade faces with fills, the same way for every solid.** The top face gets a `tint` of a light color, the face toward the light a `tint` of a darker related color, and the face away from it `solid` (hatched) or a `grey` tint. For example: `light-blue` tint, `blue` tint, `blue` solid.
+- **Circles in 3D are ellipses.** A wheel or disk seen at an angle is an `ellipse` that is wider than tall; the more it tilts away, the flatter it gets. A cylinder is two matching ellipses joined by two straight lines.
+- **Paint far to near.** Create the parts farthest from the viewer first and the nearest last, so nearer parts cover farther ones. Split a part that wraps around another, such as a frame around a wheel, into a back piece and a front piece.
+- **Hidden edges.** Lines cannot be dashed on this board. When the user asks for hidden edges, draw them as a row of short `line` segments in `grey`, or leave them out and say so.
 - **Vectors in 3D** start on the part they act on, point along a direction you can name relative to the axes, and get a short label at the tip.
 
 ### Diagrams of systems and ideas
 
 - **Let the shape mirror the idea.** One thing feeding many: fan out. Many into one: converge. Steps in order: a line with dots. A loop: arrows returning to the start. A comparison: two columns side by side. Different parts of one diagram can use different patterns.
-- **Text floats by default.** Titles, labels, and notes do not need a box around them. Box a thing only when it is a distinct part, something arrows connect to, or its shape carries meaning.
+- **Text floats by default.** Titles, labels, and notes are `text` shapes, not boxes. Use a geo shape with `text` only when the thing is a distinct part, something arrows connect to, or its shape carries meaning.
 - **Relationships need arrows.** Two things placed near each other are not connected until a line or arrow says so, ideally with a short label on the arrow saying what passes along it.
 - **Show what things actually look like.** In a technical diagram, put real names and a small real example (an event name, a sample input and output) where they teach, instead of a box that only says "data".
 
 ### Labels
 
-- **Place labels in clear space beside the drawing**, with a thin leader line that ends on the part. Never write a label over a stroke, a filled shape, or another label.
+- **Place labels in clear space beside the drawing**, with a `line` from the label to the part as a leader. Never write a label over a stroke, a filled shape, or another label.
 - **Line labels up** in a column or along one side of the drawing when there are many, so they read as a set.
 - **Fix collisions by moving the label to clear space**, not by nudging it a few pixels at a time. If one label still collides after two moves, put it in the nearest empty area with a longer leader line and move on.
 
 ### Check against the plan before you finish
 
-Look at the latest screenshot and go through the parts list. Every named part is drawn and recognizable, every label sits on clear space and points at its part, and nothing overlaps that should not. Missing parts are the next pass. When everything is there and reads, stop.
+In the pass that finishes the drawing, end with a `review` and, on the next request, look at the screenshot and go through the parts list. Every named part is drawn and recognizable, every label sits on clear space and points at its part, and nothing overlaps that should not. Missing parts are the next pass. When everything is there and reads, stop.
