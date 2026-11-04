@@ -283,6 +283,9 @@ export class TldrawAgent {
 		this.endResponse = true
 	}
 
+	/** Passes started because a response reached the output limit, for the current user request. */
+	private continuationPasses = 0
+
 	/** Whether the agent asked a question and is waiting for the user's answer. */
 	isWaitingForAnswer(): boolean {
 		return this.waitingForAnswer
@@ -671,6 +674,7 @@ export class TldrawAgent {
 		this.actions.onRequestStart(request.source)
 		this.waitingForAnswer = false
 		this.endResponse = false
+		if (request.source !== 'self') this.continuationPasses = 0
 		this.passId = crypto.randomUUID()
 		if (request.source !== 'self' || !this.requestId) this.requestId = crypto.randomUUID()
 
@@ -697,6 +701,7 @@ export class TldrawAgent {
 			const prompt = await this.preparePrompt(request, helpers)
 			let incompleteDiff: RecordsDiff<TLRecord> | null = null
 			const actionPromises: Promise<void>[] = []
+			let completedActions = 0
 			try {
 				for await (const action of this.streamAgentActions({ prompt, signal })) {
 					// After a question, the rest of the response waits for the answer.
@@ -742,6 +747,7 @@ export class TldrawAgent {
 
 								// Apply the action to the app and editor
 								const { diff, promise } = this.actions.act(transformedAction, helpers, baseRev)
+								if (transformedAction.complete) completedActions++
 
 								if (promise) {
 									actionPromises.push(promise)
@@ -772,6 +778,21 @@ export class TldrawAgent {
 				await Promise.all(actionPromises)
 			} catch (e) {
 				if (e === 'Cancelled by user' || (e instanceof Error && e.name === 'AbortError')) {
+					return
+				}
+				// The response reached the output limit. Its finished actions are on the
+				// board, so continue in a new pass instead of stopping the run.
+				if (isOutputLimitError(e) && this.continuationPasses < MAX_CONTINUATION_PASSES) {
+					this.continuationPasses++
+					await Promise.all(actionPromises)
+					this.schedule({
+						agentMessages: [
+							completedActions > 0
+								? `Your last response reached the output limit after ${completedActions} finished actions, which are on the board. Continue from where you stopped. Do not redo finished work. Keep this response shorter: fewer, larger steps, and stop at a natural break.`
+								: 'Your last response reached the output limit before it finished any action, so nothing was drawn. Plan less before acting: start drawing right away with the first few main shapes, keep this response short, and leave detail for later passes.',
+						],
+						source: 'self',
+					})
 					return
 				}
 				this.onError(e)
@@ -872,4 +893,11 @@ export class TldrawAgent {
 			reader.releaseLock()
 		}
 	}
+}
+
+/** Output-limit continuations allowed for one user request. */
+const MAX_CONTINUATION_PASSES = 3
+
+function isOutputLimitError(error: unknown) {
+	return error instanceof Error && error.message.includes('did not finish (length)')
 }

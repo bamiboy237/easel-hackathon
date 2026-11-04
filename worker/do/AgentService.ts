@@ -23,6 +23,12 @@ import { buildSystemPrompt } from '../prompt/buildSystemPrompt'
 import { getModelName } from '../prompt/getModelName'
 import { ActionStream } from './ActionStream'
 
+/**
+ * Output budget per response. Reasoning models spend part of it thinking, so a
+ * small budget can end before the first action on a hard prompt.
+ */
+const MAX_OUTPUT_TOKENS = 16384
+
 export class AgentService {
 	openai: OpenAIProvider
 	anthropic: AnthropicProvider
@@ -126,7 +132,7 @@ export class AgentService {
 			const { fullStream } = streamText({
 				model,
 				messages,
-				maxOutputTokens: 8192,
+				maxOutputTokens: MAX_OUTPUT_TOKENS,
 				// Opus 4.7+ removed `temperature` (and top_p/top_k); sending it returns a 400.
 				...(modelDefinition.supportsTemperature ? { temperature: 0 } : {}),
 				providerOptions: getProviderOptions(modelDefinition),
