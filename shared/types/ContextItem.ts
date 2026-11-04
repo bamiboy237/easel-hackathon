@@ -63,7 +63,7 @@ export const CONTEXT_TYPE_DEFINITIONS: Record<
 		icon: 'target',
 		name: (item: ShapesContextItem, editor: Editor) => {
 			const count = item.shapes.length
-			if (count === 1) return CONTEXT_TYPE_DEFINITIONS['shape'].name(item, editor)
+			if (count === 1) return CONTEXT_TYPE_DEFINITIONS['shape'].name({ type: 'shape', shape: item.shapes[0], source: item.source }, editor)
 			return `${count} shapes`
 		},
 	},

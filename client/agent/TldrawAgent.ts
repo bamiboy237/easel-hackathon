@@ -18,6 +18,7 @@ import { AgentModeType } from '../modes/AgentModeDefinitions'
 import { getPromptPartUtilsRecord, PromptPartUtil } from '../parts/PromptPartUtil'
 import { AgentActionManager } from './managers/AgentActionManager'
 import { AgentAsideManager } from './managers/AgentAsideManager'
+import { AgentMarkManager } from './managers/AgentMarkManager'
 import { AgentChatManager } from './managers/AgentChatManager'
 import { AgentChatOriginManager } from './managers/AgentChatOriginManager'
 import { AgentContextManager } from './managers/AgentContextManager'
@@ -100,6 +101,9 @@ export class TldrawAgent {
 	/** Asides: short detours from the main work, with the plan kept for later. */
 	aside: AgentAsideManager
 
+	/** The marks the user draws to ask about parts of the board. */
+	marks: AgentMarkManager
+
 	/** The lint manager associated with this agent. */
 	lints: AgentLintManager
 
@@ -155,6 +159,7 @@ export class TldrawAgent {
 		this.debug = new AgentDebugManager(this)
 		this.frames = new AgentFrameFillManager(this)
 		this.aside = new AgentAsideManager(this)
+		this.marks = new AgentMarkManager(this)
 		this.lints = new AgentLintManager(this)
 		this.modelName = new AgentModelNameManager(this)
 		this.requests = new AgentRequestManager(this)
@@ -224,6 +229,7 @@ export class TldrawAgent {
 		// Dispose all managers
 		this.actions.dispose()
 		this.aside.dispose()
+		this.marks.dispose()
 		this.chat.dispose()
 		this.chatOrigin.dispose()
 		this.context.dispose()
@@ -633,6 +639,7 @@ export class TldrawAgent {
 		// Reset all managers
 		this.actions.reset()
 		this.aside.reset()
+		this.marks.reset()
 		this.chat.reset()
 		this.chatOrigin.reset()
 		this.context.reset()
@@ -672,6 +679,7 @@ export class TldrawAgent {
 				? new Set([...this.allowedShapeIds, ...requestedShapeIds])
 				: requestedShapeIds
 		this.actions.onRequestStart(request.source)
+		this.marks.onRequestStart(request.source)
 		this.waitingForAnswer = false
 		this.endResponse = false
 		if (request.source !== 'self') this.continuationPasses = 0

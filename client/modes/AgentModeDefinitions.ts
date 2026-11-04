@@ -49,6 +49,7 @@ import { UserActionHistoryPartUtil } from '../parts/UserActionHistoryPartUtil'
 import { UserViewportBoundsPartUtil } from '../parts/UserViewportBoundsPartUtil'
 import { ClearSpacePartUtil } from '../parts/ClearSpacePartUtil'
 import { AsidePartUtil } from '../parts/AsidePartUtil'
+import { MarkPartUtil } from '../parts/MarkPartUtil'
 
 /**
  * What an agent can see and do when in a given mode.
@@ -116,6 +117,7 @@ export const AGENT_MODE_DEFINITIONS = [
 			UserViewportBoundsPartUtil.type,
 			ClearSpacePartUtil.type,
 			AsidePartUtil.type,
+			MarkPartUtil.type,
 			AgentViewportBoundsPartUtil.type,
 
 			// Shapes

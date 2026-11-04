@@ -3,11 +3,14 @@ import {
 	DefaultDashStyle,
 	DefaultFontStyle,
 	DefaultSizeStyle,
+	DefaultToolbar,
+	DefaultToolbarContent,
 	ErrorBoundary,
 	TLComponents,
 	Tldraw,
 	TldrawUiToastsProvider,
 	TLUiOverrides,
+	ToolbarItem,
 } from 'tldraw'
 import { TldrawAgentApp } from './agent/TldrawAgentApp'
 import {
@@ -18,11 +21,12 @@ import { ChatPanel } from './components/ChatPanel'
 import { ChatPanelFallback } from './components/ChatPanelFallback'
 import { ContextualStylePanel } from './components/ContextualStylePanel'
 import { CustomHelperButtons } from './components/CustomHelperButtons'
+import { MarkChip, MarkComposer } from './components/MarkComposer'
 import { isReferenceBoard, ReferenceBoardLoader } from './components/ReferenceBoard'
 import { paperTheme } from './theme/paperTheme'
 import { AgentHighlightOverlayUtil } from './overlays/AgentHighlightOverlayUtil'
-import { TargetAreaTool } from './tools/TargetAreaTool'
-import { TargetShapeTool } from './tools/TargetShapeTool'
+import { MarkOverlayUtil } from './overlays/MarkOverlayUtil'
+import { MarkTool } from './tools/MarkTool'
 
 // Customize tldraw's styles to play to the agent's strengths
 DefaultSizeStyle.setDefaultValue('s')
@@ -30,34 +34,35 @@ DefaultSizeStyle.setDefaultValue('s')
 DefaultFontStyle.setDefaultValue('serif')
 DefaultDashStyle.setDefaultValue('solid')
 
-// Custom tools for picking context items
-const tools = [TargetShapeTool, TargetAreaTool]
-const overlayUtils = [AgentHighlightOverlayUtil]
+// The Mark tool: circle, underline, strike, scribble, or tap anything to ask about it
+const tools = [MarkTool]
+const overlayUtils = [AgentHighlightOverlayUtil, MarkOverlayUtil]
 const themes = { default: paperTheme }
 const overrides: TLUiOverrides = {
 	tools: (editor, tools) => {
 		return {
 			...tools,
-			'target-area': {
-				id: 'target-area',
-				label: 'Pick Area',
-				kbd: 'c',
-				icon: 'tool-frame',
+			mark: {
+				id: 'mark',
+				label: 'Mark and ask',
+				kbd: 'm',
+				icon: 'question-mark-circle',
 				onSelect() {
-					editor.setCurrentTool('target-area')
-				},
-			},
-			'target-shape': {
-				id: 'target-shape',
-				label: 'Pick Shape',
-				kbd: 's',
-				icon: 'tool-frame',
-				onSelect() {
-					editor.setCurrentTool('target-shape')
+					editor.setCurrentTool('mark')
 				},
 			},
 		}
 	},
+}
+
+/** The default toolbar with the Mark tool first, so asking about the board is one click away. */
+function Toolbar() {
+	return (
+		<DefaultToolbar>
+			<ToolbarItem tool="mark" />
+			<DefaultToolbarContent />
+		</DefaultToolbar>
+	)
 }
 
 function App() {
@@ -71,6 +76,14 @@ function App() {
 	const components: TLComponents = useMemo(() => {
 		return {
 			StylePanel: ContextualStylePanel,
+			Toolbar,
+			InFrontOfTheCanvas: () =>
+				app && (
+					<TldrawAgentAppContextProvider app={app}>
+						<MarkComposer />
+						<MarkChip />
+					</TldrawAgentAppContextProvider>
+				),
 			HelperButtons: () =>
 				app && (
 					<TldrawAgentAppContextProvider app={app}>

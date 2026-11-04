@@ -109,6 +109,19 @@ export interface AsidePart {
 	aside: { topic: string; region: BoxModel; from: BoxModel | null; hasPlan: boolean } | null
 }
 
+export interface MarkPart {
+	type: 'mark'
+	/** The mark the user drew to ask this question, or null when the request has none. */
+	mark: {
+		kind: 'circle' | 'underline' | 'strike' | 'scribble' | 'tap'
+		targetIds: string[]
+		bounds: BoxModel
+		question: string
+		/** A crop of the marked region with the mark drawn on it, as a data URL, or '' when empty. */
+		image: string
+	} | null
+}
+
 export interface ClearSpacePart {
 	type: 'clearSpace'
 	/** What the space is next to: the shapes the request is about, or the user's view. */
@@ -533,6 +546,32 @@ export const AsidePartDefinition: PromptPartDefinition<AsidePart> = {
 		return [
 			`You are on an aside about "${aside.topic}".${from} Work only inside this space: ${JSON.stringify(aside.region)}. Keep it short and rough, like working something out on scrap paper: the app draws it in a pencil style. Do not change the main work. When the aside is done, or the user wants to go back, use \`resume\`.${plan}`,
 		]
+	},
+}
+
+// Mark
+const MARK_KINDS = {
+	circle: 'circled',
+	scribble: 'scribbled over',
+	tap: 'tapped',
+	underline: 'underlined',
+	strike: 'struck through',
+}
+
+export const MarkPartDefinition: PromptPartDefinition<MarkPart> = {
+	type: 'mark',
+	priority: -73,
+	buildContent({ mark }: MarkPart) {
+		if (!mark) return []
+		const targets =
+			mark.targetIds.length > 0
+				? `It points at ${mark.targetIds.join(', ')}.`
+				: 'It points at no shape, so the question is about what is drawn or shown in that region.'
+		const lines = [
+			`The user ${MARK_KINDS[mark.kind]} part of the board at ${JSON.stringify(mark.bounds)} to ask: "${mark.question}" ${targets} Answer about exactly what the mark points at. Read text, numbers, or details from the image of the region when the shapes do not hold them, such as in a photo or a sketch.`,
+		]
+		if (mark.image) lines.push('Here is the marked region, with the user\'s mark drawn on it.', mark.image)
+		return lines
 	},
 }
 
