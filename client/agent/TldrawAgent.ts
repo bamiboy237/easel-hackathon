@@ -18,6 +18,7 @@ import { AgentModeType } from '../modes/AgentModeDefinitions'
 import { getPromptPartUtilsRecord, PromptPartUtil } from '../parts/PromptPartUtil'
 import { AgentActionManager } from './managers/AgentActionManager'
 import { AgentAsideManager } from './managers/AgentAsideManager'
+import { AgentInkManager } from './managers/AgentInkManager'
 import { AgentMarkManager } from './managers/AgentMarkManager'
 import { AgentChatManager } from './managers/AgentChatManager'
 import { AgentChatOriginManager } from './managers/AgentChatOriginManager'
@@ -104,6 +105,9 @@ export class TldrawAgent {
 	/** The marks the user draws to ask about parts of the board. */
 	marks: AgentMarkManager
 
+	/** The ink the agent draws in on this board. */
+	ink: AgentInkManager
+
 	/** The lint manager associated with this agent. */
 	lints: AgentLintManager
 
@@ -160,6 +164,7 @@ export class TldrawAgent {
 		this.frames = new AgentFrameFillManager(this)
 		this.aside = new AgentAsideManager(this)
 		this.marks = new AgentMarkManager(this)
+		this.ink = new AgentInkManager(this)
 		this.lints = new AgentLintManager(this)
 		this.modelName = new AgentModelNameManager(this)
 		this.requests = new AgentRequestManager(this)
@@ -230,6 +235,7 @@ export class TldrawAgent {
 		this.actions.dispose()
 		this.aside.dispose()
 		this.marks.dispose()
+		this.ink.dispose()
 		this.chat.dispose()
 		this.chatOrigin.dispose()
 		this.context.dispose()

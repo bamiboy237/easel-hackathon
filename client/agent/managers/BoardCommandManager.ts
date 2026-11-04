@@ -81,6 +81,18 @@ export function getShapeCreator(shape: TLShape): ShapeCreator | undefined {
 
 type ShapeLookup = (id: string) => TLShape | undefined
 
+/**
+ * Command types that only change how shapes look, not what they say, such as
+ * redrawing the agent's shapes in the ink the user picked. They are recorded
+ * and undoable, but they are not human edits: they do not keep agent work on
+ * the board when it is reverted, and they do not make agent commands stale.
+ */
+export const PRESENTATION_COMMAND_TYPES = new Set(['agent-ink'])
+
+function isHumanCommand(origin: string, type: string) {
+	return origin !== 'agent' && !PRESENTATION_COMMAND_TYPES.has(type)
+}
+
 // Shapes that only touch at an edge do not overlap.
 const OVERLAP_TOLERANCE = 2
 
@@ -193,7 +205,7 @@ export class BoardCommandManager {
 		this.rev = Math.max(0, ...restored.map((command) => command.rev ?? 0))
 		this.humanRevs.clear()
 		for (const command of restored) {
-			if (command.status !== 'applied' || command.origin === 'agent') continue
+			if (command.status !== 'applied' || !isHumanCommand(command.origin, command.type)) continue
 			for (const id of [command.payload.added, command.payload.updated, command.payload.removed].flatMap(Object.keys)) {
 				this.humanRevs.set(id, command.rev!)
 			}
@@ -322,7 +334,7 @@ export class BoardCommandManager {
 		const later = history.filter((c) => c.status === 'applied' && !ids.has(c.commandId))
 		// Other reverts and restores are not edits, so reverting passes in any order
 		// gives the same result.
-		const isHumanEdit = (c: BoardCommand) => c.origin !== 'agent' && c.type !== 'revert' && c.type !== 'restore'
+		const isHumanEdit = (c: BoardCommand) => isHumanCommand(c.origin, c.type) && c.type !== 'revert' && c.type !== 'restore'
 		const humanChangedSince = (id: string, rev: number) =>
 			later.some((c) => isHumanEdit(c) && (c.rev ?? 0) > rev && touches(c, id))
 
@@ -676,7 +688,7 @@ export class BoardCommandManager {
 				store.schema.validateRecord(store, after, 'updateRecord', before)
 			}
 			this.rev++
-			if (origin !== 'agent') {
+			if (isHumanCommand(origin, type)) {
 				for (const id of ids) this.humanRevs.set(id, this.rev)
 			}
 		}

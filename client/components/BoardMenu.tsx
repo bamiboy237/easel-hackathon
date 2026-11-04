@@ -7,6 +7,7 @@ import {
 	useValue,
 } from 'tldraw'
 import { BoardSettings, getBoardSettings, updateBoardSettings } from '../agent/boardSettings'
+import { AGENT_INKS } from '../agent/managers/AgentInkManager'
 import { useAgent } from '../agent/TldrawAgentAppProvider'
 
 /** The board menu, with Easel's own choices for this board above tldraw's items. */
@@ -15,6 +16,7 @@ export function BoardMenu() {
 	const { editor } = agent
 	const settings = useValue('board settings', () => getBoardSettings(editor), [editor])
 	const set = (change: Partial<BoardSettings>) => {
+		editor.markHistoryStoppingPoint('board-settings')
 		agent.commands.execute('user', 'board-settings', () => updateBoardSettings(editor, change))
 	}
 
@@ -35,6 +37,19 @@ export function BoardMenu() {
 							checked={settings.resolvedThreads === 'remove'}
 							onSelect={() => set({ resolvedThreads: 'remove' })}
 						/>
+					</TldrawUiMenuGroup>
+				</TldrawUiMenuSubmenu>
+				<TldrawUiMenuSubmenu id="easel-agent-ink" label="Agent ink">
+					<TldrawUiMenuGroup id="easel-agent-ink-choices">
+						{AGENT_INKS.map(({ ink, label }) => (
+							<TldrawUiMenuCheckboxItem
+								key={ink}
+								id={`easel-agent-ink-${ink}`}
+								label={label}
+								checked={settings.agentInk === ink}
+								onSelect={() => agent.ink.setInk(ink)}
+							/>
+						))}
 					</TldrawUiMenuGroup>
 				</TldrawUiMenuSubmenu>
 			</TldrawUiMenuGroup>
