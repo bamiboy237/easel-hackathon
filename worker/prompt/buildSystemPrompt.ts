@@ -5,6 +5,8 @@ import { getSystemPromptFlags } from './getSystemPromptFlags'
 import { buildIntroPromptSection } from './sections/intro-section'
 import { buildRulesPromptSection } from './sections/rules-section'
 import canvasWorkSkill from './skills/canvas-work.md?raw'
+import drawingSkill from './skills/drawing.md?raw'
+import explainingSkill from './skills/explaining.md?raw'
 
 /**
  * Build the system prompt for the agent.
@@ -35,6 +37,8 @@ export function buildSystemPrompt(
 	const lines = [
 		buildIntroPromptSection(flags),
 		canvasWorkSkill,
+		drawingSkill,
+		explainingSkill,
 		buildRulesPromptSection(flags),
 	]
 
