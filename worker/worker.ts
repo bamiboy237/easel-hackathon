@@ -4,7 +4,7 @@ import { AutoRouter, error, IRequest, RequestHandler } from 'itty-router'
 import { Environment } from './environment'
 import { appendCommands, loadBoard, saveSnapshot } from './routes/board'
 import { stream } from './routes/stream'
-import { createVoiceSession } from './routes/voice'
+import { voiceSession } from './routes/voice'
 
 const requireLocalPage: RequestHandler<IRequest, [Environment, ExecutionContext]> = (request) => {
 	const url = new URL(request.url)
@@ -27,6 +27,18 @@ const requireLocalPage: RequestHandler<IRequest, [Environment, ExecutionContext]
 	return
 }
 
+const requireLocalWebSocket: RequestHandler<IRequest, [Environment, ExecutionContext]> = (request) => {
+	const url = new URL(request.url)
+	if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return new Response('Requests must come from the local Easel page.', { status: 403 })
+	if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
+		return new Response('Expected Upgrade: websocket.', { status: 426 })
+	}
+	if (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') !== 'same-origin') {
+		return new Response('Requests must come from the local Easel page.', { status: 403 })
+	}
+	return
+}
+
 const router = AutoRouter<IRequest, [env: Environment, ctx: ExecutionContext]>({
 	catch: (e) => {
 		console.error(e)
@@ -34,7 +46,7 @@ const router = AutoRouter<IRequest, [env: Environment, ctx: ExecutionContext]>({
 	},
 })
 	.post('/stream', requireLocalPage, stream)
-	.post('/voice/session', requireLocalPage, createVoiceSession)
+	.get('/voice/session', requireLocalWebSocket, voiceSession)
 	.get('/board/:boardId', requireLocalPage, loadBoard)
 	.post('/board/:boardId/commands', requireLocalPage, appendCommands)
 	.post('/board/:boardId/snapshots', requireLocalPage, saveSnapshot)

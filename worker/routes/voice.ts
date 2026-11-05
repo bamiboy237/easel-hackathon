@@ -1,55 +1,63 @@
 import { IRequest } from 'itty-router'
 import { Environment } from '../environment'
 
-/** How long a listening session's key lasts. A mark's question is short. */
-const SESSION_SECONDS = 120
+const META_VOICE_URL = 'https://api.meta.ai/v1/asr/realtime'
+const VOICE_MODEL = 'muse-voice-transcribe-1.0'
 
-/**
- * Start a listening session for mark and speak. The server asks OpenAI for a
- * short-lived client key for one realtime transcription session, so the browser
- * can stream the microphone straight to OpenAI without ever seeing the API key.
- */
-export async function createVoiceSession(request: IRequest, env: Environment) {
-	if (!env.OPENAI_API_KEY) return new Response('Voice is not set up: OPENAI_API_KEY is missing.', { status: 503 })
-	const { keywords } = ((await request.json().catch(() => ({}))) ?? {}) as { keywords?: unknown }
-	// Words from the marked shapes help the model spell what the user is asking about.
-	const hints = Array.isArray(keywords)
-		? keywords
-				.filter((k): k is string => typeof k === 'string')
-				.map((k) => k.replace(/[<>\r\n]/g, ' ').trim().slice(0, 60))
-				.filter(Boolean)
-				.slice(0, 20)
-		: []
-	const base = env.OPENAI_API_BASE_URL || 'https://api.openai.com'
-	const upstream = await fetch(`${base}/v1/realtime/client_secrets`, {
-		method: 'POST',
-		headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			expires_after: { anchor: 'created_at', seconds: SESSION_SECONDS },
-			session: {
-				type: 'transcription',
-				audio: {
-					input: {
-						format: { type: 'audio/pcm', rate: 24000 },
-						transcription: {
-							model: 'gpt-live-transcribe',
-							delay: 'low',
-							prompt: 'Someone asking a short question about part of a whiteboard drawing.',
-							...(hints.length > 0 ? { keywords: hints } : {}),
-						},
-						turn_detection: null,
-					},
-				},
-			},
-		}),
-	})
-	if (!upstream.ok) {
-		console.error('voice session failed', upstream.status, await upstream.text())
+/** Proxy a real-time transcription session without exposing the Meta API key. */
+export async function voiceSession(request: IRequest, env: Environment) {
+	if (!env.MODEL_API_KEY) return new Response('Voice is not set up: MODEL_API_KEY is missing.', { status: 503 })
+
+	const keywords = new URL(request.url).searchParams
+		.getAll('keyword')
+		.map((keyword) => keyword.replace(/[<>\r\n]/g, ' ').trim().slice(0, 60))
+		.filter(Boolean)
+		.slice(0, 20)
+
+	let upstreamResponse: Response
+	try {
+		upstreamResponse = await fetch(META_VOICE_URL, { headers: { Upgrade: 'websocket' } })
+	} catch {
+		console.error('Could not connect to Meta voice transcription.')
 		return new Response('Could not start listening.', { status: 502 })
 	}
-	const secret = (await upstream.json()) as { value?: string; expires_at?: number; client_secret?: { value: string; expires_at: number } }
-	const value = secret.value ?? secret.client_secret?.value
-	const expiresAt = secret.expires_at ?? secret.client_secret?.expires_at
-	if (!value) return new Response('Could not start listening.', { status: 502 })
-	return Response.json({ key: value, expiresAt })
+
+	const upstream = upstreamResponse.webSocket
+	if (!upstream) {
+		console.error('Meta voice websocket handshake failed', upstreamResponse.status)
+		return new Response('Could not start listening.', { status: 502 })
+	}
+
+	upstream.accept({ allowHalfOpen: true })
+	const pair = new WebSocketPair()
+	const [client, server] = Object.values(pair) as [WebSocket, WebSocket]
+	server.accept({ allowHalfOpen: true })
+
+	const closePeer = (socket: WebSocket) => {
+		if (socket.readyState === WebSocket.OPEN) socket.close()
+	}
+	server.addEventListener('message', (event) => {
+		if (upstream.readyState === WebSocket.OPEN) upstream.send(event.data)
+	})
+	upstream.addEventListener('message', (event) => {
+		if (server.readyState === WebSocket.OPEN) server.send(event.data)
+	})
+	server.addEventListener('close', () => closePeer(upstream))
+	upstream.addEventListener('close', () => closePeer(server))
+	server.addEventListener('error', () => closePeer(upstream))
+	upstream.addEventListener('error', () => closePeer(server))
+
+	upstream.send(
+		JSON.stringify({
+			authorization: { accessToken: `Bearer ${env.MODEL_API_KEY}` },
+			audioEncoding: 'PCM_24KHZ',
+			model: VOICE_MODEL,
+			mode: 'PUSH_TO_TALK',
+			partialMode: 'CUMULATIVE',
+			emitAudioProgress: false,
+			...(keywords.length > 0 ? { keywords } : {}),
+		}),
+	)
+
+	return new Response(null, { status: 101, webSocket: client })
 }

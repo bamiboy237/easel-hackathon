@@ -1,13 +1,12 @@
 /**
- * Listening for mark and speak. The server mints a short-lived key for one
- * OpenAI realtime transcription session; the browser streams the microphone to
- * it as 24 kHz PCM and gets the words back as they are spoken. The model has no
- * turn detection, so the end of speech is found here, from the audio level.
+ * Listening for mark and speak. The Worker proxies 24 kHz PCM audio to Meta's
+ * realtime transcription API, keeping the API key out of the browser. Speech
+ * ends when the audio level stays quiet for a short time.
  */
 
 const SAMPLE_RATE = 24000
-/** Audio is sent in chunks of this many samples (100 ms). */
-const CHUNK = 2400
+/** Audio is sent in chunks of this many samples (80 ms). */
+const CHUNK = 1920
 /** A chunk louder than this counts as speech. */
 const SPEECH_LEVEL = 0.012
 /** After speech, this much quiet ends the question. */
@@ -58,25 +57,18 @@ export class VoiceListener {
 	/** Start listening. Resolves false when the microphone or the session is unavailable. */
 	async start(keywords: string[] = []): Promise<boolean> {
 		try {
-			const response = await fetch('/voice/session', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ keywords }),
-			})
-			if (!response.ok) throw new Error(`voice session ${response.status}`)
-			const { key } = (await response.json()) as { key: string }
-			if (this.done) return false
-
 			this.stream = await navigator.mediaDevices.getUserMedia({
 				audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 			})
 			if (this.done) return this.cleanup(), false
 
-			this.ws = new WebSocket('wss://api.openai.com/v1/realtime?intent=transcription', [
-				'realtime',
-				`openai-insecure-api-key.${key}`,
-			])
-			this.ws.onmessage = (event) => this.handleEvent(JSON.parse(event.data as string))
+			const socketUrl = new URL('/voice/session', window.location.href)
+			socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+			for (const keyword of keywords) socketUrl.searchParams.append('keyword', keyword)
+			this.ws = new WebSocket(socketUrl.toString())
+			this.ws.onmessage = (event) => {
+				if (typeof event.data === 'string') this.handleEvent(JSON.parse(event.data))
+			}
 			this.ws.onerror = () => this.end(null)
 			this.ws.onclose = () => {
 				if (!this.done) this.end(this.text.trim() || null)
@@ -115,7 +107,7 @@ export class VoiceListener {
 			return
 		}
 		this.flush()
-		this.ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }))
+		this.ws.send(JSON.stringify({ type: 'endStream' }))
 		this.timers.push(setTimeout(() => this.end(this.text.trim() || null), FINAL_WAIT_MS))
 	}
 
@@ -167,22 +159,16 @@ export class VoiceListener {
 			const s = Math.max(-1, Math.min(1, samples[i]))
 			pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff
 		}
-		const bytes = new Uint8Array(pcm.buffer)
-		let binary = ''
-		for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-		this.ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: btoa(binary) }))
+		this.ws.send(pcm.buffer)
 	}
 
-	private handleEvent(event: { type: string; delta?: string; transcript?: string; error?: { message?: string } }) {
-		if (event.type === 'conversation.item.input_audio_transcription.delta' && event.delta) {
-			this.text += event.delta
+	private handleEvent(event: { type: string; transcript?: string; message?: string; error?: { message?: string } }) {
+		if (event.type === 'transcript' && event.transcript !== undefined) {
+			this.text = event.transcript
 			this.handlers.onText(this.text)
-		} else if (event.type === 'conversation.item.input_audio_transcription.completed') {
-			this.text = event.transcript ?? this.text
-			this.handlers.onText(this.text)
-			if (this.finishing) this.end(this.text.trim() || null)
 		} else if (event.type === 'error') {
-			console.warn('Listening error:', event.error?.message)
+			console.warn('Listening error:', event.error?.message ?? event.message ?? 'Meta transcription failed.')
+			this.end(this.text.trim() || null)
 		}
 	}
 
